@@ -5,6 +5,7 @@ public abstract record BlackjackStage : GameStage;
 public record BlackjackState : GameState<BlackjackStage>
 {
     public required List<object> DealerHand { get; set; } = [];
+    public required BlackjackStage Stage { get; set; }
 }
 
 /// <summary>

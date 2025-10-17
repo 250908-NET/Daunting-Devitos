@@ -73,23 +73,44 @@ public record BlackjackTeardownStage : BlackjackStage;
 
 public class BlackjackService : IBlackjackService
 {
-    public Task<BlackjackState> GetGamestateAsync(string gameId)
+    public async Task<BlackjackState> GetGamestateAsync(string gameId)
     {
         throw new NotImplementedException();
     }
 
-    public Task<bool> PerformActionAsync(
+    public static bool IsActionValid(string action, BlackjackStage stage) =>
+        action switch
+        {
+            "bet" => stage is BlackjackBettingStage,
+            "hit" => stage is BlackjackPlayerActionStage,
+            "stand" => stage is BlackjackPlayerActionStage,
+            "double" => stage is BlackjackPlayerActionStage,
+            "split" => stage is BlackjackPlayerActionStage,
+            "surrender" => stage is BlackjackPlayerActionStage,
+            _ => false,
+        };
+
+    public async Task<bool> PerformActionAsync(
         string gameId,
         string playerId,
         string action,
         JsonElement data
     )
     {
+        // ensure action is valid for this stage
+        BlackjackState state = await GetGamestateAsync(gameId);
+
+        if (!IsActionValid(action, state.Stage))
+        {
+            return false; // or throw an exception
+        }
+
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
         switch (actionDTO)
         {
             case BetAction betAction:
+
                 throw new NotImplementedException();
             case HitAction hitAction:
                 throw new NotImplementedException();

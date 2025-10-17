@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace Project.Api.Services.Interface;
 
 /// <summary>
-/// Used to represent the current state of a game.
+/// Used to represent the current stage of a game, eg. "setup", "dealing", etc.
 /// Each game should have their own "parent" abstract class that extends this class to ensure type safety.
 /// </summary>
 public abstract record GameStage;
