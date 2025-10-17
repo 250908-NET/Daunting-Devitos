@@ -2,20 +2,20 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Numerics;
-using Project.Api.Enum;
+using Project.Api.Enums;
 
 namespace Project.Api.Models;
 
 public class RoomPlayer
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
     [Required]
     public Guid RoomId { get; set; }
 
     [Required]
-    public int UserId { get; set; }
+    public Guid UserId { get; set; }
 
     [ForeignKey("RoomId")]
     public virtual Room? Room { get; set; }
@@ -28,8 +28,7 @@ public class RoomPlayer
     public Role Role { get; set; }
 
     public Status Status { get; set; }
+
     [Required]
     public long Balance { get; set; }
-    
-    
 }

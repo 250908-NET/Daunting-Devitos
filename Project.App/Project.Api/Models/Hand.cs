@@ -7,9 +7,9 @@ namespace Project.Api.Models;
 public class Hand
 {
     [Key]
-    public long Id { get; set; }
+    public Guid Id { get; set; }
 
-    public long RoomPlayerId { get; set; }
+    public Guid RoomPlayerId { get; set; }
 
     public int Order { get; set; }
 

@@ -1,0 +1,256 @@
+name: Fullstack CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }} # ignore warning, likely a false positive
+      frontend: ${{ steps.filter.outputs.frontend }} # ignore warning, likely a false positive
+      backend_override: ${{ steps.check_overrides.outputs.backend_override }}
+      frontend_override: ${{ steps.check_overrides.outputs.frontend_override }}
+    steps:
+      - name: Checkout (only if pull request)
+        uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      
+      - name: Checkout (for other events)
+        uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
+
+      # only run specific build check if changes are detected...
+      - name: Filter changed files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Project.App/Project.Api/**'
+              - 'Project.App/Project.Test/**'
+              - '**/*.sln'
+              - '**/*.csproj'
+              - '.github/workflows/FullstackBuild.yaml'
+            frontend:
+              - 'Project.App/Project.Client/**'
+              - '.github/workflows/FullstackBuild.yaml'
+
+      # ...or if there is a commit message override (force/skip)
+      # note that force overrides skip
+      - name: Check for commit message overrides
+        id: check_overrides
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+
+          BACKEND_OVERRIDE=""
+          FRONTEND_OVERRIDE=""
+
+          if [[ "$COMMIT_MESSAGE" == *"[force backend]"* ]]; then
+            echo "Forcing backend checks..."
+            BACKEND_OVERRIDE="force"
+          elif [[ "$COMMIT_MESSAGE" == *"[skip backend]"* ]]; then
+            echo "Skipping backend checks..."
+            BACKEND_OVERRIDE="skip"
+          fi
+
+          if [[ "$COMMIT_MESSAGE" == *"[force frontend]"* ]]; then
+            echo "Forcing frontend checks..."
+            FRONTEND_OVERRIDE="force"
+          elif [[ "$COMMIT_MESSAGE" == *"[skip frontend]"* ]]; then
+            echo "Skipping frontend checks..."
+            FRONTEND_OVERRIDE="skip"
+          fi
+
+          echo "backend_override=$BACKEND_OVERRIDE" >> $GITHUB_OUTPUT
+          echo "frontend_override=$FRONTEND_OVERRIDE" >> $GITHUB_OUTPUT
+
+  backend:
+    needs: changes
+    if: |
+      needs.changes.outputs.backend_override == 'force' || (
+        needs.changes.outputs.backend_override != 'skip' &&
+        needs.changes.outputs.backend == 'true' || needs.changes.result != 'success'
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      format_output: ${{ steps.backend_format_check.outputs.output }}
+      outcome: ${{ steps.backend_format_check.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Set up .NET ---
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      # --- Build Backend ---
+      - name: Restore backend dependencies
+        run: dotnet restore ./Project.App/Project.Api/Project.Api.csproj
+
+      - name: Build backend
+        run: dotnet build ./Project.App/Project.Api/Project.Api.csproj --no-restore
+
+      - name: Test backend
+        run: dotnet test ./Project.App/Project.Test/Project.Test.csproj --no-build --verbosity normal
+
+      - name: Check backend formatting
+        id: backend_format_check
+        run: |
+          dotnet tool restore
+
+          set +e # temporarily disable 'exit on error'
+          OUTPUT=$(dotnet csharpier check . 2>&1)
+          EXIT_CODE=$?
+          set -e # re-enable 'exit on error'
+
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # if check failed, explicitly exit with failure
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit 1
+          fi
+        continue-on-error: true
+
+  frontend:
+    needs: changes
+    if: |
+      needs.changes.outputs.frontend_override == 'force' || (
+        needs.changes.outputs.frontend_override != 'skip' &&
+        needs.changes.outputs.frontend == 'true' || needs.changes.result != 'success'
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      format_output: ${{ steps.frontend_format_check.outputs.output }}
+      outcome: ${{ steps.frontend_format_check.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Set up Node.js ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 24.10.0
+
+      - name: Cache node modules for next.js
+        uses: actions/cache@v4
+        with:
+          # via https://nextjs.org/docs/pages/guides/ci-build-caching
+          path: ${{ github.workspace }}/Project.App/Project.Client/.next/cache
+          key: ${{ runner.os }}-nextjs-build-${{ hashFiles('Project.App/Project.Client/package-lock.json') }}-${{ hashFiles('Project.App/Project.Client/**/*.js', 'Project.App/Project.Client/**/*.jsx', 'Project.App/Project.Client/**/*.ts', 'Project.App/Project.Client/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-build-${{ hashFiles('Project.App/Project.Client/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-build-
+
+      # --- Build Frontend ---
+      - name: Install frontend dependencies
+        working-directory: ./Project.App/Project.Client
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./Project.App/Project.Client
+        run: npm run build
+
+      - name: Lint frontend
+        working-directory: ./Project.App/Project.Client
+        run: npm run lint
+
+      - name: Check frontend formatting
+        id: frontend_format_check
+        working-directory: ./Project.App/Project.Client
+        run: |
+          set +e # temporarily disable 'exit on error'
+          OUTPUT=$(npm run format:check -- --no-color 2>&1)
+          EXIT_CODE=$?
+          set -e # re-enable 'exit on error'
+
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # if check failed, explicitly exit with failure
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit 1
+          fi
+        continue-on-error: true
+
+  add-formatting-warning-pr-comment:
+    needs: [backend, frontend]
+    # runs only if formatting checks fail
+    # theoretically, if it does not build, *.outputs.outcome should not exist, and the condition should be false
+    if: always() && github.event_name == 'pull_request' && (needs.backend.outputs.outcome == 'failure' || needs.frontend.outputs.outcome == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Complain if formatting checks fail ---
+      - name: Add PR comment if formatting checks fail
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required for github CLI to authenticate
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT_BODY="### Formatting Issues Detected!\n\n"
+          HAS_ISSUES=false
+
+          if [ "${{ needs.backend.outputs.outcome }}" == "failure" ]; then
+            COMMENT_BODY+="- **Backend (Csharpier):** Please run \`dotnet csharpier .\` to fix formatting.\n"
+            # add collapsible section for backend output
+            COMMENT_BODY+="<details><summary>View Csharpier output</summary>\n\n\`\`\`\n${{ needs.backend.outputs.format_output }}\n\`\`\`\n\n</details>\n\n"
+            HAS_ISSUES=true
+          fi
+          if [ "${{ needs.frontend.outputs.outcome }}" == "failure" ]; then
+            COMMENT_BODY+="- **Frontend (Prettier):** Please run \`npm run format\` in \`Project.App/Project.Client\` to fix formatting.\n"
+            # add collapsible section for frontend output
+            COMMENT_BODY+="<details><summary>View Prettier output</summary>\n\n\`\`\`\n${{ needs.frontend.outputs.format_output }}\n\`\`\`\n\n</details>\n\n"
+            HAS_ISSUES=true
+          fi
+
+          if [ "$HAS_ISSUES" = true ]; then
+            echo "Commenting on PR #$PR_NUMBER about formatting issues..."
+            echo -e "$COMMENT_BODY" | gh pr comment "$PR_NUMBER" --body-file -
+          else
+            echo "Nevermind, no formatting issues detected. Skipping PR comment."
+          fi
+
+  add-skip-warning-comment:
+    needs: [changes, backend, frontend]
+    if: |
+      always() &&
+      github.event_name == 'pull_request' && 
+      (needs.changes.outputs.backend_override == 'skip' || needs.changes.outputs.frontend_override == 'skip') &&
+      needs.backend.result != 'failure' && needs.frontend.result != 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add PR comment for skipped checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT_BODY="### WARNING: CI Checks Skipped!\n\nThe following checks were manually skipped via commit message:\n"
+
+          if [ "${{ needs.changes.outputs.backend_override }}" == "skip" ]; then
+            COMMENT_BODY+="- **Backend CI**\n"
+          fi
+          if [ "${{ needs.changes.outputs.frontend_override }}" == "skip" ]; then
+            COMMENT_BODY+="- **Frontend CI**\n"
+          fi
+
+          echo "Commenting on PR #$PR_NUMBER about skipped checks..."
+          echo -e "$COMMENT_BODY" | gh pr comment "$PR_NUMBER" --body-file -

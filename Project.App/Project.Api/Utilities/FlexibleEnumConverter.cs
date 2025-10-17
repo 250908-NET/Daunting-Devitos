@@ -37,7 +37,7 @@ public class FlexibleEnumConverterFactory : JsonConverterFactory
 /// </summary>
 /// <typeparam name="TEnum">The enum type.</typeparam>
 public class FlexibleEnumConverter<TEnum> : JsonConverter<TEnum>
-    where TEnum : struct, Enum
+    where TEnum : struct, System.Enum
 {
     public override TEnum Read(
         ref Utf8JsonReader reader,
@@ -49,7 +49,7 @@ public class FlexibleEnumConverter<TEnum> : JsonConverter<TEnum>
         {
             // check if string value is a defined enum member
             string? enumString = reader.GetString();
-            if (enumString != null && Enum.TryParse(enumString, true, out TEnum result))
+            if (enumString != null && System.Enum.TryParse(enumString, true, out TEnum result))
             {
                 return result;
             }
@@ -59,7 +59,7 @@ public class FlexibleEnumConverter<TEnum> : JsonConverter<TEnum>
             if (reader.TryGetInt32(out int enumInt))
             {
                 // check if integer value is a defined enum member
-                if (Enum.IsDefined(typeToConvert, enumInt))
+                if (System.Enum.IsDefined(typeToConvert, enumInt))
                 {
                     return (TEnum)(object)enumInt;
                 }
