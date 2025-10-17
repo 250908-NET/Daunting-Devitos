@@ -206,7 +206,7 @@ jobs:
           HAS_ISSUES=false
 
           if [ "${{ needs.backend.outputs.outcome }}" == "failure" ]; then
-            COMMENT_BODY+="- **Backend (Csharpier):** Please run \`dotnet csharpier .\` to fix formatting.\n"
+            COMMENT_BODY+="- **Backend (Csharpier):** Please run \`dotnet csharpier format .\` to fix formatting.\n"
             # add collapsible section for backend output
             COMMENT_BODY+="<details><summary>View Csharpier output</summary>\n\n\`\`\`\n${{ needs.backend.outputs.format_output }}\n\`\`\`\n\n</details>\n\n"
             HAS_ISSUES=true
