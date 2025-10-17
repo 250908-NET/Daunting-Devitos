@@ -5,11 +5,11 @@ namespace Project.Api.Repositories.Interface
     public interface IUserRepository
     {
         Task<IEnumerable<User>> GetAllAsync();
-        Task<User?> GetByIdAsync(int id);
+        Task<User?> GetByIdAsync(Guid id);
         Task<User?> GetByEmailAsync(string email);
         Task AddAsync(User user);
         Task UpdateAsync(User user);
-        Task DeleteAsync(int id);
+        Task DeleteAsync(Guid id);
         Task SaveChangesAsync();
     }
 }
