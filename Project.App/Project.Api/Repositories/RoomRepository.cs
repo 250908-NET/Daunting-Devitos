@@ -24,10 +24,7 @@ public class RoomRepository : IRoomRepository
 
     public async Task<IEnumerable<Room>> GetAllAsync()
     {
-        return await _context
-            .Rooms.Include(r => r.Host)
-            .Include(r => r.RoomPlayers)
-            .ToListAsync();
+        return await _context.Rooms.Include(r => r.Host).Include(r => r.RoomPlayers).ToListAsync();
     }
 
     public async Task<IEnumerable<Room>> GetActiveRoomsAsync()
@@ -94,4 +91,3 @@ public class RoomRepository : IRoomRepository
         return await _context.Rooms.AnyAsync(r => r.Id == id);
     }
 }
-

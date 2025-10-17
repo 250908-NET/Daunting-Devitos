@@ -17,6 +17,7 @@ using Project.Api.Repositories;
 using Project.Api.Services;
 
 namespace Project.Api.Services;
+
 public class HandService : IHandService
 {
     // Call the repository
@@ -39,6 +40,7 @@ public class HandService : IHandService
         _logger.LogInformation("Creating a new hand");
         return await _Repo.CreateHandAsync(hand);
     }
+
     // Get all hands in a room
     public async Task<List<Hand>> GetHandsByRoomIdAsync(Guid roomId)
     {
@@ -55,6 +57,7 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
+
     // Get a hand by its ID
     public async Task<Hand?> GetHandAsyncByIdAsync(Guid handId)
     {
@@ -71,6 +74,7 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
+
     // Get all hands by a user in a room
     public async Task<List<Hand>> GetHandsByUserIdAsync(Guid roomId, Guid userId)
     {
@@ -83,12 +87,13 @@ public class HandService : IHandService
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error getting all hands for user {userId} in room {roomId}: {e.Message}");
+            _logger.LogError(
+                e,
+                $"Error getting all hands for user {userId} in room {roomId}: {e.Message}"
+            );
             throw new Exception(e.Message);
         }
-        
     }
-
 
     // Update an existing hand
     public async Task<Hand> UpdateHandAsync(Guid handId, Hand hand)
@@ -106,8 +111,14 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
+
     // Partially update an existing hand
-    public async Task<Hand> PatchHandAsync(Guid handId, int? Order = null, string? CardsJson = null, int? Bet = null)
+    public async Task<Hand> PatchHandAsync(
+        Guid handId,
+        int? Order = null,
+        string? CardsJson = null,
+        int? Bet = null
+    )
     {
         try
         {
@@ -122,6 +133,7 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
+
     // Delete a hand
     public async Task<Hand> DeleteHandAsync(Guid handId)
     {
@@ -137,8 +149,5 @@ public class HandService : IHandService
             _logger.LogError(e, $"Error deleting hand {handId}: {e.Message}");
             throw new Exception(e.Message);
         }
-        
     }
-    
-
 }

@@ -4,6 +4,7 @@ using Project.Api.Models;
 using Project.DTOs;
 
 namespace Project.Api.Data;
+
 public class MappingProfile : Profile
 {
     public MappingProfile() { }

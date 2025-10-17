@@ -1,6 +1,7 @@
 using Project.Api.Models;
 
 namespace Project.Api.Repositories.Interface;
+
 public interface IRoomRepository
 {
     Task<Room?> GetByIdAsync(Guid id);
@@ -13,4 +14,3 @@ public interface IRoomRepository
     Task<bool> DeleteAsync(Guid id);
     Task<bool> ExistsAsync(Guid id);
 }
-

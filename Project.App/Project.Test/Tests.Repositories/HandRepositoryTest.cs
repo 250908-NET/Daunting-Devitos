@@ -1,13 +1,12 @@
+using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories;
-using Project.Api.Data;
 using Xunit;
-using Microsoft.EntityFrameworkCore.Query;
-using System.Runtime.InteropServices;
-
 
 namespace Project.Test.Repository
 {
@@ -15,10 +14,8 @@ namespace Project.Test.Repository
     {
         private readonly Mock<IHandRepository> _handRepositoryMock;
 
-
         public HandRepositoryTest()
         {
-
             _handRepositoryMock = new Mock<IHandRepository>();
         }
 
@@ -38,10 +35,17 @@ namespace Project.Test.Repository
             var roomPlayerId = Guid.NewGuid();
 
             using var context = new AppDbContext(options);
-            context.Hands.Add(new Hand { Id = handId, Order = 1, RoomPlayerId = roomPlayerId, CardsJson = "[]", Bet = 0 });
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId,
+                    Order = 1,
+                    RoomPlayerId = roomPlayerId,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
             await context.SaveChangesAsync();
-
-
 
             // Act
             var repo = new HandRepository(context);
@@ -54,8 +58,8 @@ namespace Project.Test.Repository
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
             Assert.Equal("[]", res.CardsJson);
             Assert.Equal(0, res.Bet);
-
         }
+
         [Fact]
         public async Task GetHandAsyncById_InvalidId_ReturnsNull()
         {
@@ -63,7 +67,16 @@ namespace Project.Test.Repository
             var options = GetInMemoryDbOptions();
 
             using var context = new AppDbContext(options);
-            context.Hands.Add(new Hand { Id = Guid.NewGuid(), Order = 1, RoomPlayerId = Guid.NewGuid(), CardsJson = "[]", Bet = 0 });
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = Guid.NewGuid(),
+                    Order = 1,
+                    RoomPlayerId = Guid.NewGuid(),
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
             await context.SaveChangesAsync();
 
             // Act
@@ -73,6 +86,7 @@ namespace Project.Test.Repository
             // Assert
             Assert.Null(res);
         }
+
         [Fact]
         public async Task GetHandsByRoomIdAsync_ValidRoomId_ReturnsHands()
         {
@@ -90,14 +104,82 @@ namespace Project.Test.Repository
 
             // Act
             using var context = new AppDbContext(options);
-            context.RoomPlayers.Add(new RoomPlayer { Id = roomPlayerId1, RoomId = roomId, UserId = Guid.NewGuid(), Balance = 1000 });
-            context.RoomPlayers.Add(new RoomPlayer { Id = roomPlayerId2, RoomId = roomId, UserId = Guid.NewGuid(), Balance = 1000 });
-            context.RoomPlayers.Add(new RoomPlayer { Id = roomPlayerId3, RoomId = roomId, UserId = Guid.NewGuid(), Balance = 1000 });
-            context.RoomPlayers.Add(new RoomPlayer { Id = roomPlayerId4, RoomId = roomId, UserId = Guid.NewGuid(), Balance = 1000 });
-            context.Hands.Add(new Hand { Id = handId1, Order = 1, RoomPlayerId = roomPlayerId1, CardsJson = "[]", Bet = 0 });
-            context.Hands.Add(new Hand { Id = handId2, Order = 2, RoomPlayerId = roomPlayerId2, CardsJson = "[]", Bet = 0 });
-            context.Hands.Add(new Hand { Id = handId3, Order = 3, RoomPlayerId = roomPlayerId3, CardsJson = "[]", Bet = 0 });
-            context.Hands.Add(new Hand { Id = handId4, Order = 4, RoomPlayerId = roomPlayerId4, CardsJson = "[]", Bet = 0 }); // Different RoomPlayer
+            context.RoomPlayers.Add(
+                new RoomPlayer
+                {
+                    Id = roomPlayerId1,
+                    RoomId = roomId,
+                    UserId = Guid.NewGuid(),
+                    Balance = 1000,
+                }
+            );
+            context.RoomPlayers.Add(
+                new RoomPlayer
+                {
+                    Id = roomPlayerId2,
+                    RoomId = roomId,
+                    UserId = Guid.NewGuid(),
+                    Balance = 1000,
+                }
+            );
+            context.RoomPlayers.Add(
+                new RoomPlayer
+                {
+                    Id = roomPlayerId3,
+                    RoomId = roomId,
+                    UserId = Guid.NewGuid(),
+                    Balance = 1000,
+                }
+            );
+            context.RoomPlayers.Add(
+                new RoomPlayer
+                {
+                    Id = roomPlayerId4,
+                    RoomId = roomId,
+                    UserId = Guid.NewGuid(),
+                    Balance = 1000,
+                }
+            );
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId1,
+                    Order = 1,
+                    RoomPlayerId = roomPlayerId1,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId2,
+                    Order = 2,
+                    RoomPlayerId = roomPlayerId2,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId3,
+                    Order = 3,
+                    RoomPlayerId = roomPlayerId3,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId4,
+                    Order = 4,
+                    RoomPlayerId = roomPlayerId4,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            ); // Different RoomPlayer
             await context.SaveChangesAsync();
 
             // Assert
@@ -130,6 +212,7 @@ namespace Project.Test.Repository
                 await repo.GetHandsByRoomIdAsync(Guid.Empty);
             });
         }
+
         [Fact]
         public async Task CreateHandAsync_ValidHand_ReturnsCreatedHand()
         {
@@ -137,7 +220,14 @@ namespace Project.Test.Repository
             var options = GetInMemoryDbOptions();
             var handId = Guid.NewGuid();
             var roomPlayerId = Guid.NewGuid();
-            var newHand = new Hand { Id = handId, Order = 1, RoomPlayerId = roomPlayerId, CardsJson = "[]", Bet = 0 };
+            var newHand = new Hand
+            {
+                Id = handId,
+                Order = 1,
+                RoomPlayerId = roomPlayerId,
+                CardsJson = "[]",
+                Bet = 0,
+            };
 
             using var context = new AppDbContext(options);
             var repo = new HandRepository(context);
@@ -153,6 +243,7 @@ namespace Project.Test.Repository
             Assert.Equal("[]", res.CardsJson);
             Assert.Equal(0, res.Bet);
         }
+
         [Fact]
         public async Task CreateHandAsync_NullHand_ThrowsArgumentNullException()
         {
@@ -168,6 +259,7 @@ namespace Project.Test.Repository
                 await repo.CreateHandAsync(null!);
             });
         }
+
         [Fact]
         public async Task UpdateHandAsync_ValidHand_ReturnsUpdatedHand()
         {
@@ -180,10 +272,29 @@ namespace Project.Test.Repository
             using var context = new AppDbContext(options);
 
             // Act
-            context.Hands.Add(new Hand { Id = handId, Order = 1, RoomPlayerId = roomPlayerId, CardsJson = "[]", Bet = 0 });
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId,
+                    Order = 1,
+                    RoomPlayerId = roomPlayerId,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
             await context.SaveChangesAsync();
             var repo = new HandRepository(context);
-            await repo.UpdateHandAsync(handId, new Hand { Id = handId, Order = 2, RoomPlayerId = roomPlayerId, CardsJson = "[\"AS\"]", Bet = 100 });
+            await repo.UpdateHandAsync(
+                handId,
+                new Hand
+                {
+                    Id = handId,
+                    Order = 2,
+                    RoomPlayerId = roomPlayerId,
+                    CardsJson = "[\"AS\"]",
+                    Bet = 100,
+                }
+            );
 
             // Assert
 
@@ -207,9 +318,20 @@ namespace Project.Test.Repository
             // Act & Assert
             await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
             {
-                await repo.UpdateHandAsync(Guid.NewGuid(), new Hand { Id = Guid.NewGuid(), Order = 1, RoomPlayerId = Guid.NewGuid(), CardsJson = "[]", Bet = 0 });
+                await repo.UpdateHandAsync(
+                    Guid.NewGuid(),
+                    new Hand
+                    {
+                        Id = Guid.NewGuid(),
+                        Order = 1,
+                        RoomPlayerId = Guid.NewGuid(),
+                        CardsJson = "[]",
+                        Bet = 0,
+                    }
+                );
             });
         }
+
         [Fact]
         public async Task UpdateHandAsync_NullHand_ThrowsArgumentNullException()
         {
@@ -225,6 +347,7 @@ namespace Project.Test.Repository
                 await repo.UpdateHandAsync(Guid.NewGuid(), null!);
             });
         }
+
         [Fact]
         public async Task PatchHandAsync_ValidHand_ReturnsPatchedHand()
         {
@@ -237,7 +360,16 @@ namespace Project.Test.Repository
             using var context = new AppDbContext(options);
 
             // Act
-            context.Hands.Add(new Hand { Id = handId, Order = 1, RoomPlayerId = roomPlayerId, CardsJson = "[]", Bet = 0 });
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId,
+                    Order = 1,
+                    RoomPlayerId = roomPlayerId,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
             await context.SaveChangesAsync();
             var repo = new HandRepository(context);
             Hand res = await repo.PatchHandAsync(handId, Order: 3, Bet: 200);
@@ -249,6 +381,7 @@ namespace Project.Test.Repository
             Assert.Equal("[]", res.CardsJson);
             Assert.Equal(200, res.Bet);
         }
+
         [Fact]
         public async Task PatchHandAsync_InvalidHandId_ThrowsKeyNotFoundException()
         {
@@ -264,6 +397,7 @@ namespace Project.Test.Repository
                 await repo.PatchHandAsync(Guid.NewGuid(), Order: 2);
             });
         }
+
         [Fact]
         public async Task DeleteHandAsync_ValidHandId_ReturnsDeletedHand()
         {
@@ -276,7 +410,16 @@ namespace Project.Test.Repository
             using var context = new AppDbContext(options);
 
             // Act
-            context.Hands.Add(new Hand { Id = handId, Order = 1, RoomPlayerId = roomPlayerId, CardsJson = "[]", Bet = 0 });
+            context.Hands.Add(
+                new Hand
+                {
+                    Id = handId,
+                    Order = 1,
+                    RoomPlayerId = roomPlayerId,
+                    CardsJson = "[]",
+                    Bet = 0,
+                }
+            );
             await context.SaveChangesAsync();
             var repo = new HandRepository(context);
             Hand res = await repo.DeleteHandAsync(handId);
@@ -288,6 +431,7 @@ namespace Project.Test.Repository
             var deletedHand = await repo.GetHandAsyncById(handId);
             Assert.Null(deletedHand);
         }
+
         [Fact]
         public async Task DeleteHandAsync_InvalidHandId_ThrowsKeyNotFoundException()
         {
@@ -303,11 +447,5 @@ namespace Project.Test.Repository
                 await repo.DeleteHandAsync(Guid.NewGuid());
             });
         }
-        
     }
-    
-        
 };
-
-    
-
