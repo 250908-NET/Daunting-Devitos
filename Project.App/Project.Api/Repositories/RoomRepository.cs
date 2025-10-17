@@ -2,17 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
+using Project.Api.Utilities;
 
 namespace Project.Api.Repositories;
 
-public class RoomRepository : IRoomRepository
+public class RoomRepository(AppDbContext context) : IRoomRepository
 {
-    private readonly AppDbContext _context;
-
-    public RoomRepository(AppDbContext context)
-    {
-        _context = context;
-    }
+    private readonly AppDbContext _context = context;
 
     public async Task<Room?> GetByIdAsync(Guid id)
     {
@@ -56,7 +52,18 @@ public class RoomRepository : IRoomRepository
     public async Task<Room> CreateAsync(Room room)
     {
         _context.Rooms.Add(room);
-        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "The room you are trying to update has been modified by another user. Please refresh and try again."
+            );
+        }
+
         return room;
     }
 
@@ -69,7 +76,18 @@ public class RoomRepository : IRoomRepository
         }
 
         _context.Entry(existingRoom).CurrentValues.SetValues(room);
-        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "The room you are trying to update has been modified by another user. Please refresh and try again."
+            );
+        }
+
         return existingRoom;
     }
 
@@ -82,12 +100,54 @@ public class RoomRepository : IRoomRepository
         }
 
         _context.Rooms.Remove(room);
-        await _context.SaveChangesAsync();
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "The room you are trying to update has been modified by another user. Please refresh and try again."
+            );
+        }
+
         return true;
     }
 
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await _context.Rooms.AnyAsync(r => r.Id == id);
+    }
+
+    public async Task<string> GetGameStateAsync(Guid id)
+    {
+        // check if room exists
+        Room room =
+            await _context.Rooms.FindAsync(id) ?? throw new NotFoundException("Room not found.");
+
+        return room.GameState;
+    }
+
+    public async Task<Room> UpdateGamestateAsync(Guid id, string gamestate)
+    {
+        // check if room exists
+        Room room =
+            await _context.Rooms.FindAsync(id) ?? throw new NotFoundException("Room not found.");
+
+        room.GameState = gamestate;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "The room you are trying to update has been modified by another user. Please refresh and try again."
+            );
+        }
+
+        return room;
     }
 }

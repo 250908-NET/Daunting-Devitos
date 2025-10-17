@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Project.Api.Models;
 
@@ -42,4 +44,14 @@ public class Room
     public virtual User? Host { get; set; }
 
     public virtual ICollection<RoomPlayer> RoomPlayers { get; set; } = [];
+
+    public byte[] RowVersion { get; set; } = []; // concurrency
+}
+
+public class RoomConfiguration : IEntityTypeConfiguration<Room>
+{
+    public void Configure(EntityTypeBuilder<Room> builder)
+    {
+        builder.Property(r => r.RowVersion).IsRowVersion();
+    }
 }
