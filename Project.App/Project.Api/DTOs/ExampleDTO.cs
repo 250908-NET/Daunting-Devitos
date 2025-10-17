@@ -1,4 +1,3 @@
-namespace Project.DTOs
-{
-    public class ExampleDTO { }
-}
+namespace Project.DTOs;
+public class ExampleDTO { }
+

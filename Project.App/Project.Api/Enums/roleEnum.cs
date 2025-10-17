@@ -1,9 +1,7 @@
-namespace Project.Api.Enums
+namespace Project.Api.Enums;
+public enum Role
 {
-    public enum Role
-    {
-        Admin,
-        Moderator,
-        Player,
-    }
+    Admin,
+    Moderator,
+    Player,
 }
