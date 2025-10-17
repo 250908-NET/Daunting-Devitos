@@ -3,47 +3,24 @@ using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
+using Project.Test.Helpers;
 
 namespace Project.Test;
 
 public class UserRepositoryTests
 {
-    private AppDbContext CreateInMemoryContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        return new AppDbContext(options);
-    }
-
-    private User CreateTestUser(
-        Guid? id = null,
-        string? name = null,
-        string? email = null,
-        string? passwordHash = null,
-        double balance = 1000
-    )
-    {
-        return new User
-        {
-            Id = id ?? Guid.NewGuid(),
-            Name = name ?? "Test User",
-            Email = email ?? $"test{Guid.NewGuid()}@example.com",
-            PasswordHash = passwordHash ?? "hashedpassword123",
-            Balance = balance,
-        };
-    }
-
     [Fact]
     public async Task GetAllAsync_ReturnsAllUsers()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user1 = CreateTestUser(name: "Alice", email: "alice@example.com");
-        var user2 = CreateTestUser(name: "Bob", email: "bob@example.com");
-        var user3 = CreateTestUser(name: "Charlie", email: "charlie@example.com");
+        var user1 = RepositoryTestHelper.CreateTestUser(name: "Alice", email: "alice@example.com");
+        var user2 = RepositoryTestHelper.CreateTestUser(name: "Bob", email: "bob@example.com");
+        var user3 = RepositoryTestHelper.CreateTestUser(
+            name: "Charlie",
+            email: "charlie@example.com"
+        );
 
         await context.Users.AddRangeAsync(user1, user2, user3);
         await context.SaveChangesAsync();
@@ -62,7 +39,7 @@ public class UserRepositoryTests
     public async Task GetAllAsync_ReturnsEmptyList_WhenNoUsersExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
 
         // Act
@@ -76,10 +53,14 @@ public class UserRepositoryTests
     public async Task GetByIdAsync_ReturnsUser_WhenUserExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
         var userId = Guid.NewGuid();
-        var user = CreateTestUser(id: userId, name: "Alice", email: "alice@example.com");
+        var user = RepositoryTestHelper.CreateTestUser(
+            id: userId,
+            name: "Alice",
+            email: "alice@example.com"
+        );
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -98,7 +79,7 @@ public class UserRepositoryTests
     public async Task GetByIdAsync_ReturnsNull_WhenUserDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
         var nonExistentId = Guid.NewGuid();
 
@@ -113,9 +94,9 @@ public class UserRepositoryTests
     public async Task GetByEmailAsync_ReturnsUser_WhenUserExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(name: "Alice", email: "alice@example.com");
+        var user = RepositoryTestHelper.CreateTestUser(name: "Alice", email: "alice@example.com");
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -133,7 +114,7 @@ public class UserRepositoryTests
     public async Task GetByEmailAsync_ReturnsNull_WhenUserDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
 
         // Act
@@ -147,9 +128,9 @@ public class UserRepositoryTests
     public async Task GetByEmailAsync_IsCaseSensitive()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(email: "alice@example.com");
+        var user = RepositoryTestHelper.CreateTestUser(email: "alice@example.com");
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -166,9 +147,9 @@ public class UserRepositoryTests
     public async Task AddAsync_AddsUserToDatabase()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(name: "Alice", email: "alice@example.com");
+        var user = RepositoryTestHelper.CreateTestUser(name: "Alice", email: "alice@example.com");
 
         // Act
         await repository.AddAsync(user);
@@ -186,9 +167,9 @@ public class UserRepositoryTests
     public async Task AddAsync_SavesWithDefaultBalance()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser();
+        var user = RepositoryTestHelper.CreateTestUser();
 
         // Act
         await repository.AddAsync(user);
@@ -203,9 +184,9 @@ public class UserRepositoryTests
     public async Task AddAsync_SavesWithCustomBalance()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(balance: 5000);
+        var user = RepositoryTestHelper.CreateTestUser(balance: 5000);
 
         // Act
         await repository.AddAsync(user);
@@ -220,9 +201,9 @@ public class UserRepositoryTests
     public async Task AddAsync_GeneratesId_WhenNotProvided()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(id: Guid.Empty);
+        var user = RepositoryTestHelper.CreateTestUser(id: Guid.Empty);
 
         // Act
         await repository.AddAsync(user);
@@ -237,9 +218,13 @@ public class UserRepositoryTests
     public async Task UpdateAsync_UpdatesExistingUser()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(name: "Alice", email: "alice@example.com", balance: 1000);
+        var user = RepositoryTestHelper.CreateTestUser(
+            name: "Alice",
+            email: "alice@example.com",
+            balance: 1000
+        );
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -264,9 +249,9 @@ public class UserRepositoryTests
     public async Task UpdateAsync_DoesNotChangeEmail()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(email: "alice@example.com");
+        var user = RepositoryTestHelper.CreateTestUser(email: "alice@example.com");
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -287,9 +272,9 @@ public class UserRepositoryTests
     public async Task DeleteAsync_RemovesUser_WhenUserExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser();
+        var user = RepositoryTestHelper.CreateTestUser();
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -307,7 +292,7 @@ public class UserRepositoryTests
     public async Task DeleteAsync_DoesNothing_WhenUserDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
         var nonExistentId = Guid.NewGuid();
 
@@ -322,9 +307,9 @@ public class UserRepositoryTests
     public async Task SaveChangesAsync_PersistsChanges()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser();
+        var user = RepositoryTestHelper.CreateTestUser();
 
         await context.Users.AddAsync(user);
 
@@ -372,10 +357,10 @@ public class UserRepositoryTests
     public async Task AddAsync_AllowsDuplicateEmail_InMemoryDatabase()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user1 = CreateTestUser(email: "duplicate@example.com");
-        var user2 = CreateTestUser(email: "duplicate@example.com");
+        var user1 = RepositoryTestHelper.CreateTestUser(email: "duplicate@example.com");
+        var user2 = RepositoryTestHelper.CreateTestUser(email: "duplicate@example.com");
 
         // Act
         await repository.AddAsync(user1);
@@ -393,9 +378,9 @@ public class UserRepositoryTests
     public async Task UpdateAsync_UpdatesBalance_AfterTransaction()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(balance: 1000);
+        var user = RepositoryTestHelper.CreateTestUser(balance: 1000);
 
         await context.Users.AddAsync(user);
         await context.SaveChangesAsync();
@@ -416,9 +401,9 @@ public class UserRepositoryTests
     public async Task User_CanHaveZeroBalance()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(balance: 0);
+        var user = RepositoryTestHelper.CreateTestUser(balance: 0);
 
         // Act
         await repository.AddAsync(user);
@@ -433,9 +418,9 @@ public class UserRepositoryTests
     public async Task User_CanHaveNegativeBalance()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new UserRepository(context);
-        var user = CreateTestUser(balance: -500);
+        var user = RepositoryTestHelper.CreateTestUser(balance: -500);
 
         // Act
         await repository.AddAsync(user);

@@ -3,66 +3,21 @@ using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories;
+using Project.Test.Helpers;
 
 namespace Project.Test;
 
 public class RoomRepositoryTests
 {
-    private AppDbContext CreateInMemoryContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        return new AppDbContext(options);
-    }
-
-    private Room CreateTestRoom(
-        Guid? id = null,
-        Guid? hostId = null,
-        bool isPublic = true,
-        bool isActive = true
-    )
-    {
-        return new Room
-        {
-            Id = id ?? Guid.NewGuid(),
-            HostId = hostId ?? Guid.NewGuid(),
-            isPublic = isPublic,
-            isActive = isActive,
-            CreatedAt = DateTime.UtcNow,
-            GameMode = "Texas Hold'em",
-            GameState = "{}",
-            Description = "Test room",
-            MaxPlayers = 6,
-            MinPlayers = 2,
-            DeckId = 1,
-            Round = 0,
-            State = "Waiting",
-        };
-    }
-
-    private User CreateTestUser(Guid? id = null)
-    {
-        return new User
-        {
-            Id = id ?? Guid.NewGuid(),
-            Name = "Test User",
-            Email = "test@example.com",
-            PasswordHash = "hashedpassword",
-            Balance = 1000,
-        };
-    }
-
     [Fact]
     public async Task GetByIdAsync_ReturnsRoom_WhenRoomExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var hostId = Guid.NewGuid();
-        var host = CreateTestUser(hostId);
-        var room = CreateTestRoom(hostId: hostId);
+        var host = RepositoryTestHelper.CreateTestUser(hostId);
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: hostId);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(room);
@@ -82,7 +37,7 @@ public class RoomRepositoryTests
     public async Task GetByIdAsync_ReturnsNull_WhenRoomDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var nonExistentId = Guid.NewGuid();
 
@@ -97,12 +52,24 @@ public class RoomRepositoryTests
     public async Task GetAllAsync_ReturnsAllRooms()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room1 = CreateTestRoom(hostId: host.Id, isPublic: true, isActive: true);
-        var room2 = CreateTestRoom(hostId: host.Id, isPublic: false, isActive: false);
-        var room3 = CreateTestRoom(hostId: host.Id, isPublic: true, isActive: false);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room1 = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: true,
+            isActive: true
+        );
+        var room2 = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: false,
+            isActive: false
+        );
+        var room3 = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: true,
+            isActive: false
+        );
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddRangeAsync(room1, room2, room3);
@@ -122,7 +89,7 @@ public class RoomRepositoryTests
     public async Task GetAllAsync_ReturnsEmptyList_WhenNoRoomsExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
 
         // Act
@@ -136,12 +103,12 @@ public class RoomRepositoryTests
     public async Task GetActiveRoomsAsync_ReturnsOnlyActiveRooms()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var activeRoom1 = CreateTestRoom(hostId: host.Id, isActive: true);
-        var activeRoom2 = CreateTestRoom(hostId: host.Id, isActive: true);
-        var inactiveRoom = CreateTestRoom(hostId: host.Id, isActive: false);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var activeRoom1 = RepositoryTestHelper.CreateTestRoom(hostId: host.Id, isActive: true);
+        var activeRoom2 = RepositoryTestHelper.CreateTestRoom(hostId: host.Id, isActive: true);
+        var inactiveRoom = RepositoryTestHelper.CreateTestRoom(hostId: host.Id, isActive: false);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddRangeAsync(activeRoom1, activeRoom2, inactiveRoom);
@@ -161,10 +128,10 @@ public class RoomRepositoryTests
     public async Task GetActiveRoomsAsync_ReturnsEmptyList_WhenNoActiveRooms()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var inactiveRoom = CreateTestRoom(hostId: host.Id, isActive: false);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var inactiveRoom = RepositoryTestHelper.CreateTestRoom(hostId: host.Id, isActive: false);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(inactiveRoom);
@@ -181,13 +148,29 @@ public class RoomRepositoryTests
     public async Task GetPublicRoomsAsync_ReturnsOnlyPublicAndActiveRooms()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var publicActiveRoom = CreateTestRoom(hostId: host.Id, isPublic: true, isActive: true);
-        var publicInactiveRoom = CreateTestRoom(hostId: host.Id, isPublic: true, isActive: false);
-        var privateActiveRoom = CreateTestRoom(hostId: host.Id, isPublic: false, isActive: true);
-        var privateInactiveRoom = CreateTestRoom(hostId: host.Id, isPublic: false, isActive: false);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var publicActiveRoom = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: true,
+            isActive: true
+        );
+        var publicInactiveRoom = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: true,
+            isActive: false
+        );
+        var privateActiveRoom = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: false,
+            isActive: true
+        );
+        var privateInactiveRoom = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: false,
+            isActive: false
+        );
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddRangeAsync(
@@ -213,10 +196,14 @@ public class RoomRepositoryTests
     public async Task GetPublicRoomsAsync_ReturnsEmptyList_WhenNoPublicActiveRooms()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var privateRoom = CreateTestRoom(hostId: host.Id, isPublic: false, isActive: true);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var privateRoom = RepositoryTestHelper.CreateTestRoom(
+            hostId: host.Id,
+            isPublic: false,
+            isActive: true
+        );
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(privateRoom);
@@ -233,11 +220,11 @@ public class RoomRepositoryTests
     public async Task GetByHostIdAsync_ReturnsRoom_WhenRoomExistsForHost()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var hostId = Guid.NewGuid();
-        var host = CreateTestUser(hostId);
-        var room = CreateTestRoom(hostId: hostId);
+        var host = RepositoryTestHelper.CreateTestUser(hostId);
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: hostId);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(room);
@@ -256,7 +243,7 @@ public class RoomRepositoryTests
     public async Task GetByHostIdAsync_ReturnsNull_WhenNoRoomExistsForHost()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var nonExistentHostId = Guid.NewGuid();
 
@@ -271,12 +258,12 @@ public class RoomRepositoryTests
     public async Task GetByHostIdAsync_ReturnsFirstRoom_WhenMultipleRoomsExistForHost()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var hostId = Guid.NewGuid();
-        var host = CreateTestUser(hostId);
-        var room1 = CreateTestRoom(hostId: hostId);
-        var room2 = CreateTestRoom(hostId: hostId);
+        var host = RepositoryTestHelper.CreateTestUser(hostId);
+        var room1 = RepositoryTestHelper.CreateTestRoom(hostId: hostId);
+        var room2 = RepositoryTestHelper.CreateTestRoom(hostId: hostId);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddRangeAsync(room1, room2);
@@ -294,10 +281,10 @@ public class RoomRepositoryTests
     public async Task CreateAsync_AddsRoomToDatabase()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room = CreateTestRoom(hostId: host.Id);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: host.Id);
 
         await context.Users.AddAsync(host);
         await context.SaveChangesAsync();
@@ -317,10 +304,10 @@ public class RoomRepositoryTests
     public async Task CreateAsync_GeneratesId_WhenNotProvided()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room = CreateTestRoom(id: Guid.Empty, hostId: host.Id);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room = RepositoryTestHelper.CreateTestRoom(id: Guid.Empty, hostId: host.Id);
 
         await context.Users.AddAsync(host);
         await context.SaveChangesAsync();
@@ -337,10 +324,10 @@ public class RoomRepositoryTests
     public async Task UpdateAsync_UpdatesExistingRoom()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room = CreateTestRoom(hostId: host.Id);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: host.Id);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(room);
@@ -368,9 +355,9 @@ public class RoomRepositoryTests
     public async Task UpdateAsync_ReturnsNull_WhenRoomDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var nonExistentRoom = CreateTestRoom();
+        var nonExistentRoom = RepositoryTestHelper.CreateTestRoom();
 
         // Act
         var result = await repository.UpdateAsync(nonExistentRoom);
@@ -383,10 +370,10 @@ public class RoomRepositoryTests
     public async Task DeleteAsync_RemovesRoom_WhenRoomExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room = CreateTestRoom(hostId: host.Id);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: host.Id);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(room);
@@ -406,7 +393,7 @@ public class RoomRepositoryTests
     public async Task DeleteAsync_ReturnsFalse_WhenRoomDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var nonExistentId = Guid.NewGuid();
 
@@ -421,10 +408,10 @@ public class RoomRepositoryTests
     public async Task ExistsAsync_ReturnsTrue_WhenRoomExists()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
-        var host = CreateTestUser();
-        var room = CreateTestRoom(hostId: host.Id);
+        var host = RepositoryTestHelper.CreateTestUser();
+        var room = RepositoryTestHelper.CreateTestRoom(hostId: host.Id);
 
         await context.Users.AddAsync(host);
         await context.Rooms.AddAsync(room);
@@ -441,7 +428,7 @@ public class RoomRepositoryTests
     public async Task ExistsAsync_ReturnsFalse_WhenRoomDoesNotExist()
     {
         // Arrange
-        await using var context = CreateInMemoryContext();
+        await using var context = RepositoryTestHelper.CreateInMemoryContext();
         var repository = new RoomRepository(context);
         var nonExistentId = Guid.NewGuid();
 
