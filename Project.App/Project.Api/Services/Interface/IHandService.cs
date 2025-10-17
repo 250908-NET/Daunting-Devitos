@@ -20,7 +20,12 @@ namespace Project.Api.Services
 
         Task<Hand> UpdateHandAsync(Guid handId, Hand hand);
 
-        Task<Hand> PatchHandAsync(Guid handId, int? Order = null, string? CardsJson = null, int? Bet = null);
+        Task<Hand> PatchHandAsync(
+            Guid handId,
+            int? Order = null,
+            string? CardsJson = null,
+            int? Bet = null
+        );
 
         Task<Hand> DeleteHandAsync(Guid handId);
     }

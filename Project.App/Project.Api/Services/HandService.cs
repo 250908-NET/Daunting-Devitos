@@ -40,6 +40,7 @@ namespace Project.Api.Services
             _logger.LogInformation("Creating a new hand");
             return await _Repo.CreateHandAsync(hand);
         }
+
         // Get all hands in a room
         public async Task<List<Hand>> GetHandsByRoomIdAsync(Guid roomId)
         {
@@ -56,6 +57,7 @@ namespace Project.Api.Services
                 throw new Exception(e.Message);
             }
         }
+
         // Get a hand by its ID
         public async Task<Hand?> GetHandAsyncByIdAsync(Guid handId)
         {
@@ -72,6 +74,7 @@ namespace Project.Api.Services
                 throw new Exception(e.Message);
             }
         }
+
         // Get all hands by a user in a room
         public async Task<List<Hand>> GetHandsByUserIdAsync(Guid roomId, Guid userId)
         {
@@ -84,12 +87,13 @@ namespace Project.Api.Services
             catch (Exception e)
             {
                 // throw an exception and Log it
-                _logger.LogError(e, $"Error getting all hands for user {userId} in room {roomId}: {e.Message}");
+                _logger.LogError(
+                    e,
+                    $"Error getting all hands for user {userId} in room {roomId}: {e.Message}"
+                );
                 throw new Exception(e.Message);
             }
-            
         }
-
 
         // Update an existing hand
         public async Task<Hand> UpdateHandAsync(Guid handId, Hand hand)
@@ -107,8 +111,14 @@ namespace Project.Api.Services
                 throw new Exception(e.Message);
             }
         }
+
         // Partially update an existing hand
-        public async Task<Hand> PatchHandAsync(Guid handId, int? Order = null, string? CardsJson = null, int? Bet = null)
+        public async Task<Hand> PatchHandAsync(
+            Guid handId,
+            int? Order = null,
+            string? CardsJson = null,
+            int? Bet = null
+        )
         {
             try
             {
@@ -123,6 +133,7 @@ namespace Project.Api.Services
                 throw new Exception(e.Message);
             }
         }
+
         // Delete a hand
         public async Task<Hand> DeleteHandAsync(Guid handId)
         {
@@ -138,9 +149,6 @@ namespace Project.Api.Services
                 _logger.LogError(e, $"Error deleting hand {handId}: {e.Message}");
                 throw new Exception(e.Message);
             }
-            
         }
-        
-
     }
 }

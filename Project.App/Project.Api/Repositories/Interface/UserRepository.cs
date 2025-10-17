@@ -20,7 +20,7 @@ namespace Project.Api.Repositories.Interface
         }
 
         //  Get user by ID
-        public async Task<User?> GetByIdAsync(int id)
+        public async Task<User?> GetByIdAsync(Guid id)
         {
             return await _context.Users.FindAsync(id);
         }
@@ -46,7 +46,7 @@ namespace Project.Api.Repositories.Interface
         }
 
         // Delete user by ID
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Guid id)
         {
             var user = await _context.Users.FindAsync(id);
             if (user != null)
