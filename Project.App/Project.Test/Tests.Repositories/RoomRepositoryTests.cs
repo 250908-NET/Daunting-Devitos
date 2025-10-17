@@ -28,8 +28,8 @@ public class RoomRepositoryTests
         {
             Id = id ?? Guid.NewGuid(),
             HostId = hostId ?? Guid.NewGuid(),
-            isPublic = isPublic,
-            isActive = isActive,
+            IsPublic = isPublic,
+            IsActive = isActive,
             CreatedAt = DateTime.UtcNow,
             GameMode = "Texas Hold'em",
             GameState = "{}",
@@ -349,7 +349,7 @@ public class RoomRepositoryTests
         // Modify room properties
         room.Description = "Updated description";
         room.MaxPlayers = 8;
-        room.isActive = false;
+        room.IsActive = false;
 
         // Act
         var result = await repository.UpdateAsync(room);
@@ -358,7 +358,7 @@ public class RoomRepositoryTests
         result.Should().NotBeNull();
         result!.Description.Should().Be("Updated description");
         result.MaxPlayers.Should().Be(8);
-        result.isActive.Should().BeFalse();
+        result.IsActive.Should().BeFalse();
 
         var updatedRoom = await context.Rooms.FindAsync(room.Id);
         updatedRoom!.Description.Should().Be("Updated description");

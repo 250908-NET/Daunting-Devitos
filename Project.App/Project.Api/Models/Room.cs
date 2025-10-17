@@ -12,9 +12,9 @@ public class Room
 
     public Guid HostId { get; set; }
 
-    public bool isPublic { get; set; }
+    public bool IsPublic { get; set; }
 
-    public bool isActive { get; set; }
+    public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

@@ -28,7 +28,7 @@ public class RoomRepository(AppDbContext context) : IRoomRepository
         return await _context
             .Rooms.Include(r => r.Host)
             .Include(r => r.RoomPlayers)
-            .Where(r => r.isActive)
+            .Where(r => r.IsActive)
             .ToListAsync();
     }
 
@@ -37,7 +37,7 @@ public class RoomRepository(AppDbContext context) : IRoomRepository
         return await _context
             .Rooms.Include(r => r.Host)
             .Include(r => r.RoomPlayers)
-            .Where(r => r.isPublic && r.isActive)
+            .Where(r => r.IsPublic && r.IsActive)
             .ToListAsync();
     }
 
