@@ -23,7 +23,7 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      
+
       - name: Checkout (for other events)
         uses: actions/checkout@v4
         if: github.event_name != 'pull_request'
@@ -95,13 +95,13 @@ jobs:
 
       # --- Build Backend ---
       - name: Restore backend dependencies
-        run: dotnet restore ./Project.App/Project.Api/Project.Api.csproj
+        run: dotnet restore
 
       - name: Build backend
-        run: dotnet build ./Project.App/Project.Api/Project.Api.csproj --no-restore
+        run: dotnet build --no-restore
 
       - name: Test backend
-        run: dotnet test ./Project.App/Project.Test/Project.Test.csproj --no-build --verbosity normal
+        run: dotnet test --no-build --verbosity normal
 
       - name: Check backend formatting
         id: backend_format_check
