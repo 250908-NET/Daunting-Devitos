@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Project.Api.DTOs;
+using Project.Api.Models.Games;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 
 namespace Project.Api.Services;
@@ -44,38 +46,15 @@ close room
 
 */
 
-#region Blackjack Game Stages
-
-// initial setup
-// initialize deck, set game configs
-public record BlackjackInitStage : BlackjackStage;
-
-// doing pre-round setup
-public record BlackjackSetupStage : BlackjackStage;
-
-// waiting for players to bet
-public record BlackjackBettingStage : BlackjackStage;
-
-// dealing
-public record BlackjackDealingStage : BlackjackStage;
-
-// player turn
-// TODO: figure out how turn order will work
-public record BlackjackPlayerActionStage(int Index) : BlackjackStage;
-
-// dealer turn and distribute winnings
-public record BlackjackFinishRoundStage : BlackjackStage;
-
-// teardown, close room
-public record BlackjackTeardownStage : BlackjackStage;
-
-#endregion
-
-public class BlackjackService : IBlackjackService
+public class BlackjackService(IRoomRepository roomRepository) : IBlackjackService
 {
-    public async Task<BlackjackState> GetGamestateAsync(string gameId)
+    private readonly IRoomRepository _roomRepository = roomRepository;
+
+    public async Task<BlackjackState> GetGamestateAsync(Guid gameId)
     {
-        throw new NotImplementedException();
+        string stateString = await _roomRepository.GetGameStateAsync(gameId);
+
+        return JsonSerializer.Deserialize<BlackjackState>(stateString)!;
     }
 
     public static bool IsActionValid(string action, BlackjackStage stage) =>
@@ -91,8 +70,8 @@ public class BlackjackService : IBlackjackService
         };
 
     public async Task<bool> PerformActionAsync(
-        string gameId,
-        string playerId,
+        Guid gameId,
+        Guid playerId,
         string action,
         JsonElement data
     )
@@ -107,6 +86,7 @@ public class BlackjackService : IBlackjackService
 
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
+        // do the action :)
         switch (actionDTO)
         {
             case BetAction betAction:

@@ -129,7 +129,7 @@ public class RoomRepository(AppDbContext context) : IRoomRepository
         return room.GameState;
     }
 
-    public async Task<Room> UpdateGamestateAsync(Guid id, string gamestate)
+    public async Task<bool> UpdateGamestateAsync(Guid id, string gamestate)
     {
         // check if room exists
         Room room =
@@ -148,6 +148,6 @@ public class RoomRepository(AppDbContext context) : IRoomRepository
             );
         }
 
-        return room;
+        return true;
     }
 }

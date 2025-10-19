@@ -1,6 +1,6 @@
-namespace Project.Api.Services.Interface;
+using Project.Api.Models.Games;
 
-public abstract record BlackjackStage : GameStage;
+namespace Project.Api.Services.Interface;
 
 public record BlackjackState : GameState<BlackjackStage>
 {
@@ -11,4 +11,4 @@ public record BlackjackState : GameState<BlackjackStage>
 /// <summary>
 /// Represents a service for handling blackjack logic.
 /// </summary>
-public interface IBlackjackService : IGameService<BlackjackState> { }
+public interface IBlackjackService : IGameService<BlackjackState, BlackjackStage> { }
