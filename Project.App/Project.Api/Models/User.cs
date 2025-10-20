@@ -15,8 +15,6 @@ namespace Project.Api.Models
         [Required, MaxLength(256)]
         public string Email { get; set; } = null!;
 
-        [Required, MaxLength(256)]
-        public string PasswordHash { get; set; } = null!; //we can get rid of this field due to google login
         public double Balance { get; set; } = 1000;
 
         [MaxLength(512)]
