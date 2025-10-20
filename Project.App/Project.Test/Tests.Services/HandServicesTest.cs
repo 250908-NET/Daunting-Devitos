@@ -145,10 +145,7 @@ namespace Project.Test.Services
                 _handService.GetHandByIdAsync(Guid.NewGuid())
             );
 
-            _handRepositoryMock.Verify(
-                repo => repo.GetHandByIdAsync(It.IsAny<Guid>()),
-                Times.Once
-            );
+            _handRepositoryMock.Verify(repo => repo.GetHandByIdAsync(It.IsAny<Guid>()), Times.Once);
         }
 
         [Fact]
