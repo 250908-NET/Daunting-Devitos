@@ -12,7 +12,7 @@ public interface IHandService
     // Define Fields
     Task<List<Hand>> GetHandsByRoomIdAsync(Guid roomId);
 
-    Task<Hand?> GetHandAsyncByIdAsync(Guid handId);
+    Task<Hand?> GetHandByIdAsync(Guid handId);
 
     Task<List<Hand>> GetHandsByUserIdAsync(Guid roomId, Guid userId);
 
