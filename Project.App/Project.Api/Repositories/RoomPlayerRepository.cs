@@ -7,17 +7,13 @@ using Project.Api.Data;
 using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
+using Project.Api.Utilities;
 
 namespace Project.Api.Repositories;
 
-public class RoomPlayerRepository : IRoomPlayerRepository
+public class RoomPlayerRepository(AppDbContext context) : IRoomPlayerRepository
 {
-    private readonly AppDbContext _context;
-
-    public RoomPlayerRepository(AppDbContext context)
-    {
-        _context = context;
-    }
+    private readonly AppDbContext _context = context;
 
     public async Task<RoomPlayer?> GetByIdAsync(Guid id)
     {
@@ -128,21 +124,21 @@ public class RoomPlayerRepository : IRoomPlayerRepository
 
     public async Task UpdatePlayerStatusAsync(Guid id, Status status)
     {
-        var roomPlayer = await _context.RoomPlayers.FindAsync(id);
-        if (roomPlayer != null)
-        {
-            roomPlayer.Status = status;
-            await _context.SaveChangesAsync();
-        }
+        RoomPlayer roomPlayer =
+            await _context.RoomPlayers.FindAsync(id)
+            ?? throw new NotFoundException("Player not found");
+
+        roomPlayer.Status = status;
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdatePlayerBalanceAsync(Guid id, long balance)
     {
-        var roomPlayer = await _context.RoomPlayers.FindAsync(id);
-        if (roomPlayer != null)
-        {
-            roomPlayer.Balance = balance;
-            await _context.SaveChangesAsync();
-        }
+        RoomPlayer roomPlayer =
+            await _context.RoomPlayers.FindAsync(id)
+            ?? throw new NotFoundException("Player not found");
+
+        roomPlayer.Balance = balance;
+        await _context.SaveChangesAsync();
     }
 }

@@ -5,7 +5,6 @@ namespace Project.Api.Models.Games;
 public record BlackjackState : GameState<BlackjackStage>
 {
     public List<object> DealerHand { get; set; } = [];
-    public required BlackjackStage Stage { get; set; }
 }
 
 [JsonDerivedType(typeof(BlackjackInitStage), typeDiscriminator: "init")]

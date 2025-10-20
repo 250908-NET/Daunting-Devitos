@@ -113,7 +113,7 @@ public class BlackjackService(
     {
         // ensure action is valid for this stage
         BlackjackState state = await GetGameStateAsync(roomId);
-        if (!IsActionValid(action, state.Stage))
+        if (!IsActionValid(action, state.CurrentStage))
         {
             throw new BadRequestException(
                 $"Action {action} is not a valid action for this game stage."
@@ -139,13 +139,14 @@ public class BlackjackService(
                     );
                 }
 
-                BlackjackBettingStage stage = (BlackjackBettingStage)state.Stage;
+                BlackjackBettingStage stage = (BlackjackBettingStage)state.CurrentStage;
 
                 // set bet in gamestate
                 stage.Bets[player.Id] = betAction.Amount;
+                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
+                // update player status
                 player.Status = Status.Active;
-
                 await _roomPlayerRepository.UpdateAsync(player);
 
                 // if not past deadline, do not move to next stage
@@ -154,17 +155,25 @@ public class BlackjackService(
                     break;
                 }
 
-                // all bets final
-                foreach (Guid better in stage.Bets.Keys)
+                // time is up, process all bets
+                foreach ((Guid better, long bet) in stage.Bets)
                 {
-                    await _roomPlayerRepository.UpdatePlayerBalanceAsync(
-                        better,
-                        stage.Bets[better]
-                    );
+                    try
+                    {
+                        // The bet amount should be deducted, so we pass a negative value.
+                        await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
+                    }
+                    catch (NotFoundException)
+                    {
+                        // This indicates an inconsistent state. A bet was recorded for a player who no longer exists.
+                        throw new InternalServerException(
+                            $"Could not find player {better} to process their bet."
+                        );
+                    }
                 }
 
                 // move to next stage
-                state.Stage = new BlackjackPlayerActionStage(0);
+                state.CurrentStage = new BlackjackPlayerActionStage(0);
                 await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
                 break;
