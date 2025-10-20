@@ -8,9 +8,8 @@ namespace Project.Api.Services.Interface;
 /// Actions are async and stateless, so for each request, the service needs to get the current game state and
 /// act accordingly, either by updating the game state or returning an error.
 /// </summary>
-public interface IGameService<TState, TStage>
-    where TState : GameState<TStage>
-    where TStage : GameStage
+public interface IGameService<TState>
+    where TState : IGameState
 {
     Task<TState> GetGamestateAsync(Guid gameId);
 
