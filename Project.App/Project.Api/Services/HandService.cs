@@ -59,13 +59,13 @@ public class HandService : IHandService
     }
 
     // Get a hand by its ID
-    public async Task<Hand?> GetHandAsyncByIdAsync(Guid handId)
+    public async Task<Hand?> GetHandByIdAsync(Guid handId)
     {
         try
         {
             // send request to repository
             _logger.LogInformation($"Getting hand {handId}");
-            return await _Repo.GetHandAsyncById(handId);
+            return await _Repo.GetHandByIdAsync(handId);
         }
         catch (Exception e)
         {
@@ -150,4 +150,4 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
-}
+};

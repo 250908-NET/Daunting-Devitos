@@ -1,13 +1,6 @@
 'use client';
 
-export default function AddCreditsModal({ 
-  isOpen, 
-  onClose, 
-  balance, 
-  creditsToAdd, 
-  setCreditsToAdd, 
-  onSubmit 
-}) {
+export default function AddCreditsModal({ isOpen, onClose, balance, creditsToAdd, setCreditsToAdd, onSubmit }) {
   if (!isOpen) return null;
 
   return (
@@ -17,12 +10,10 @@ export default function AddCreditsModal({
           Add Credits
         </h2>
         <div className="h-1 bg-gradient-to-r from-transparent via-red-600 to-transparent mb-6"></div>
-        
+
         <div className="bg-black/50 rounded-lg p-4 mb-6 border border-red-900">
           <p className="text-gray-300 text-sm mb-1">Current Balance</p>
-          <p className="text-2xl font-bold text-yellow-400">
-            ${balance.toFixed(2)}
-          </p>
+          <p className="text-2xl font-bold text-yellow-400">${balance.toFixed(2)}</p>
         </div>
 
         <form onSubmit={onSubmit}>
@@ -30,11 +21,11 @@ export default function AddCreditsModal({
             <span className="text-yellow-100 text-sm font-medium">Amount to Add</span>
             <input
               type="number"
-              step="0.01"
+              step="10"
               min="0"
               value={creditsToAdd}
               onChange={(e) => setCreditsToAdd(e.target.value)}
-              placeholder="0.00"
+              placeholder="0"
               className="w-full mt-1 px-4 py-3 bg-black/50 border-2 border-yellow-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
               required
             />
