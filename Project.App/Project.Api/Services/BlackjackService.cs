@@ -104,7 +104,7 @@ public class BlackjackService(
             _ => false,
         };
 
-    public async Task<bool> PerformActionAsync(
+    public async Task PerformActionAsync(
         Guid roomId,
         Guid playerId,
         string action,
@@ -115,13 +115,15 @@ public class BlackjackService(
         BlackjackState state = await GetGameStateAsync(roomId);
         if (!IsActionValid(action, state.Stage))
         {
-            return false; // or throw an exception
+            throw new BadRequestException(
+                $"Action {action} is not a valid action for this game stage."
+            );
         }
 
         // check if player is in the room
         RoomPlayer player =
             await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, playerId)
-            ?? throw new NotFoundException("Player not found.");
+            ?? throw new BadRequestException($"Player {playerId} not found.");
 
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
@@ -132,7 +134,9 @@ public class BlackjackService(
                 // check if player has enough chips
                 if (player.Balance < betAction.Amount)
                 {
-                    return false; // or throw an exception
+                    throw new BadRequestException(
+                        $"Player {playerId} does not have enough chips to bet {betAction.Amount}."
+                    );
                 }
 
                 BlackjackBettingStage stage = (BlackjackBettingStage)state.Stage;
@@ -147,7 +151,7 @@ public class BlackjackService(
                 // if not past deadline, do not move to next stage
                 if (DateTime.UtcNow < stage.Deadline)
                 {
-                    return true;
+                    break;
                 }
 
                 // all bets final
@@ -163,7 +167,7 @@ public class BlackjackService(
                 state.Stage = new BlackjackPlayerActionStage(0);
                 await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
-                return true;
+                break;
             case HitAction hitAction:
                 throw new NotImplementedException();
             case StandAction standAction:

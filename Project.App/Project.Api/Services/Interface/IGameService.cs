@@ -23,5 +23,6 @@ public interface IGameService<TState, TConfig>
     /// </summary>
     /// <param name="action">The action to perform</param>
     /// <param name="data">A JSON object containing the action data</param>
-    Task<bool> PerformActionAsync(Guid gameId, Guid playerId, string action, JsonElement data);
+    /// <throws cref="ApiException">Thrown if the action is invalid</throws>
+    Task PerformActionAsync(Guid gameId, Guid playerId, string action, JsonElement data);
 }
