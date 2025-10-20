@@ -14,17 +14,18 @@ export default function CreateGameForm() {
     const name = roomName.trim();
     if (name.length > 20) {
       setRoomNameError('Room name must be 20 characters or less.');
-        const description = roomDescription.trim();
-        if (description.length > 100) {
-          setRoomNameError('Room description must be 100 characters or less.');
-          return;
-        }
-    
+      const description = roomDescription.trim();
+      if (description.length > 100) {
+        setRoomNameError('Room description must be 100 characters or less.');
+        return;
+      }
     }
     setRoomNameError('');
 
     // Dummy submit
-    alert(`Game created! Room: ${name} Description: ${roomDescription} (min bet: $${minBet}, max players: ${maxPlayers})`);
+    alert(
+      `Game created! Room: ${name} Description: ${roomDescription} (min bet: $${minBet}, max players: ${maxPlayers})`,
+    );
     setRoomName('');
     setMinBet('');
     setMaxPlayers(5);

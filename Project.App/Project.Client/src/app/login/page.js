@@ -2,7 +2,7 @@
 
 export default function Login() {
   //placeholder function for Google sign-in
-    const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = () => {
     console.log('Google sign-in clicked');
     alert('Google sign-in clicked! Check the console.');
     // Google authentication will be implemented here
@@ -11,10 +11,14 @@ export default function Login() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 relative overflow-hidden">
       {/* Casino felt texture overlay */}
-      <div className="absolute inset-0 opacity-30" style={{
-        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,.1) 2px, rgba(0,0,0,.1) 4px)',
-      }}></div>
-      
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,.1) 2px, rgba(0,0,0,.1) 4px)',
+        }}
+      ></div>
+
       <main className="bg-black/80 backdrop-blur-lg rounded-2xl p-8 md:p-12 shadow-2xl w-full max-w-md mx-4 border-2 border-yellow-600 relative z-10">
         <div className="text-center mb-6">
           <h1 className="text-4xl font-bold bg-gradient-to-b from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent mb-2">
@@ -24,7 +28,7 @@ export default function Login() {
           <p className="text-yellow-100 font-semibold">Ready to Double Down with Devito?</p>
         </div>
         <p className="text-gray-300 text-center mb-8">Sign in to continue</p>
-        
+
         <div className="space-y-4">
           <button
             className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white text-gray-700 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200 shadow-md hover:shadow-lg"
