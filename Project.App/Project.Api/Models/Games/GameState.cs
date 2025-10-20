@@ -8,9 +8,9 @@ public abstract record GameStage;
 
 /// <summary>
 /// Represents the current state of a game, including all relevant information.
-/// Can be extended to include more information for a specific game type.
+/// Should be extended to include more information for a specific game type.
 /// </summary>
-public record GameState<TStage>
+public abstract record GameState<TStage>
     where TStage : GameStage
 {
     public required TStage CurrentStage { get; set; }
