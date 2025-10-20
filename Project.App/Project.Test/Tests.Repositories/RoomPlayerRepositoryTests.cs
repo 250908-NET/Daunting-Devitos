@@ -7,7 +7,7 @@ using Project.Api.Repositories;
 using Project.Api.Utilities;
 using Project.Test.Helpers;
 
-namespace Project.Test;
+namespace Project.Test.Tests.Repositories;
 
 public class RoomPlayerRepositoryTests
 {
