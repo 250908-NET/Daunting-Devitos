@@ -5,6 +5,7 @@ using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
+using Project.Api.Utilities;
 
 namespace Project.Api.Services;
 
@@ -45,6 +46,25 @@ end loop
 
 teardown
 close room
+
+*/
+
+/*
+
+problem:
+  a REST API is stateless, so there's no way to have a "timer" for game phases.
+  this could lead to a long delay if a player never moves.
+
+solution (the realistic one):
+  use something like Redis pub/sub to broadcast a delayed message that acts as a timer
+
+solution (the hacky one):
+  have the initial request handler that started the betting phase start a timer and trigger the next game phase
+  (this could be brittle if the server crashes or restarts)
+
+solution (the funny one):
+  have a "hurry up" button that triggers the next game phase if the time is past the deadline
+  (could be combined with prev, but could lead to a race condition)
 
 */
 
@@ -93,16 +113,15 @@ public class BlackjackService(
     {
         // ensure action is valid for this stage
         BlackjackState state = await GetGameStateAsync(roomId);
-
         if (!IsActionValid(action, state.Stage))
         {
             return false; // or throw an exception
         }
 
-        // check if player exists
-        User player =
-            await _userRepository.GetByIdAsync(playerId)
-            ?? throw new InvalidOperationException("Player does not exist.");
+        // check if player is in the room
+        RoomPlayer player =
+            await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, playerId)
+            ?? throw new NotFoundException("Player not found.");
 
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
@@ -110,16 +129,16 @@ public class BlackjackService(
         switch (actionDTO)
         {
             case BetAction betAction:
-                // add player to room, if they're not already
-                RoomPlayer? roomPlayer = await GetOrAddPlayerToRoomAsync(roomId, playerId);
-                if (roomPlayer is null)
-                {
-                    return false;
-                }
-
                 // deduct bet account from player's room balance
-                roomPlayer.Balance -= betAction.Amount;
-                await _roomPlayerRepository.UpdateAsync(roomPlayer);
+                if (player.Balance < betAction.Amount)
+                {
+                    return false; // or throw an exception
+                }
+                player.Balance -= betAction.Amount;
+
+                player.Status = Status.Active;
+
+                await _roomPlayerRepository.UpdateAsync(player);
 
                 return true;
             case HitAction hitAction:
@@ -135,36 +154,5 @@ public class BlackjackService(
             default:
                 throw new NotImplementedException();
         }
-    }
-
-    /// <summary>
-    /// Gets a player from the room, or adds them if they're not already in the room.
-    /// </summary>
-    /// <returns>The retrieved or added player</returns>
-    public async Task<RoomPlayer?> GetOrAddPlayerToRoomAsync(Guid roomId, Guid playerId)
-    {
-        RoomPlayer? roomPlayer = await _roomPlayerRepository.GetByRoomAndUserAsync(
-            roomId,
-            playerId
-        );
-
-        if (
-            roomPlayer is null
-            && (await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId)).Count()
-                >= Config.MaxPlayers
-        )
-        {
-            roomPlayer = new RoomPlayer
-            {
-                Id = Guid.NewGuid(),
-                RoomId = roomId,
-                UserId = playerId,
-                Role = Role.Player,
-                Balance = _config.StartingBalance,
-            };
-            roomPlayer = await _roomPlayerRepository.CreateAsync(roomPlayer);
-        }
-
-        return roomPlayer;
     }
 }
