@@ -135,6 +135,7 @@ public class BlackjackService(
                     return false; // or throw an exception
                 }
                 player.Balance -= betAction.Amount;
+                player.BalanceDelta -= betAction.Amount;
 
                 player.Status = Status.Active;
 

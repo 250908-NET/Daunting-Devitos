@@ -31,4 +31,6 @@ public class RoomPlayer
 
     [Required]
     public long Balance { get; set; }
+
+    public long BalanceDelta { get; set; } = 0;
 }
