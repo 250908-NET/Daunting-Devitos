@@ -895,6 +895,4 @@ public class RoomPlayerRepositoryTests
     }
 
     #endregion
-
-    
 }
