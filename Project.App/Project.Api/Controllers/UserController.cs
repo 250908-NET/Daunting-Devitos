@@ -62,7 +62,6 @@ namespace Project.Api.Controllers
             // Update allowed fields
             existingUser.Name = user.Name;
             existingUser.Email = user.Email;
-            existingUser.PasswordHash = user.PasswordHash;
             existingUser.Balance = user.Balance;
 
             await _userRepository.UpdateAsync(existingUser);
