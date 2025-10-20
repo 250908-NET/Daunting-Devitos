@@ -14,7 +14,7 @@ public interface IGameService<TState, TConfig>
 {
     TConfig Config { get; set; }
 
-    Task<TState> GetGamestateAsync(Guid gameId);
+    Task<TState> GetGameStateAsync(Guid gameId);
 
     /// <summary>
     /// Performs a user action on the game, if valid, then updates the game state.

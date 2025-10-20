@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Project.Api.DTOs;
+using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
@@ -47,10 +48,14 @@ close room
 
 */
 
-public class BlackjackService(IRoomRepository roomRepository, IUserRepository userRepository)
-    : IBlackjackService
+public class BlackjackService(
+    IRoomRepository roomRepository,
+    IRoomPlayerRepository roomPlayerRepository,
+    IUserRepository userRepository
+) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
+    private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
 
     private BlackjackConfig _config = new();
@@ -60,9 +65,9 @@ public class BlackjackService(IRoomRepository roomRepository, IUserRepository us
         set => _config = value;
     }
 
-    public async Task<BlackjackState> GetGamestateAsync(Guid gameId)
+    public async Task<BlackjackState> GetGameStateAsync(Guid roomId)
     {
-        string stateString = await _roomRepository.GetGameStateAsync(gameId);
+        string stateString = await _roomRepository.GetGameStateAsync(roomId);
 
         return JsonSerializer.Deserialize<BlackjackState>(stateString)!;
     }
@@ -80,14 +85,14 @@ public class BlackjackService(IRoomRepository roomRepository, IUserRepository us
         };
 
     public async Task<bool> PerformActionAsync(
-        Guid gameId,
+        Guid roomId,
         Guid playerId,
         string action,
         JsonElement data
     )
     {
         // ensure action is valid for this stage
-        BlackjackState state = await GetGamestateAsync(gameId);
+        BlackjackState state = await GetGameStateAsync(roomId);
 
         if (!IsActionValid(action, state.Stage))
         {
@@ -105,10 +110,18 @@ public class BlackjackService(IRoomRepository roomRepository, IUserRepository us
         switch (actionDTO)
         {
             case BetAction betAction:
+                // add player to room, if they're not already
+                RoomPlayer? roomPlayer = await GetOrAddPlayerToRoomAsync(roomId, playerId);
+                if (roomPlayer is null)
+                {
+                    return false;
+                }
 
-                // add player to room, if they're not already there
+                // deduct bet account from player's room balance
+                roomPlayer.Balance -= betAction.Amount;
+                await _roomPlayerRepository.UpdateAsync(roomPlayer);
 
-                throw new NotImplementedException();
+                return true;
             case HitAction hitAction:
                 throw new NotImplementedException();
             case StandAction standAction:
@@ -122,7 +135,36 @@ public class BlackjackService(IRoomRepository roomRepository, IUserRepository us
             default:
                 throw new NotImplementedException();
         }
+    }
 
-        throw new NotImplementedException();
+    /// <summary>
+    /// Gets a player from the room, or adds them if they're not already in the room.
+    /// </summary>
+    /// <returns>The retrieved or added player</returns>
+    public async Task<RoomPlayer?> GetOrAddPlayerToRoomAsync(Guid roomId, Guid playerId)
+    {
+        RoomPlayer? roomPlayer = await _roomPlayerRepository.GetByRoomAndUserAsync(
+            roomId,
+            playerId
+        );
+
+        if (
+            roomPlayer is null
+            && (await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId)).Count()
+                >= Config.MaxPlayers
+        )
+        {
+            roomPlayer = new RoomPlayer
+            {
+                Id = Guid.NewGuid(),
+                RoomId = roomId,
+                UserId = playerId,
+                Role = Role.Player,
+                Balance = _config.StartingBalance,
+            };
+            roomPlayer = await _roomPlayerRepository.CreateAsync(roomPlayer);
+        }
+
+        return roomPlayer;
     }
 }
