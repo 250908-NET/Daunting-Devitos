@@ -150,4 +150,35 @@ public class RoomRepository(AppDbContext context) : IRoomRepository
 
         return true;
     }
+
+    public async Task<string> GetGameConfigAsync(Guid id)
+    {
+        // check if room exists
+        Room room =
+            await _context.Rooms.FindAsync(id) ?? throw new NotFoundException("Room not found.");
+
+        return room.GameConfig;
+    }
+
+    public async Task<bool> UpdateGameConfigAsync(Guid id, string gameConfig)
+    {
+        // check if room exists
+        Room room =
+            await _context.Rooms.FindAsync(id) ?? throw new NotFoundException("Room not found.");
+
+        room.GameConfig = gameConfig;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException(
+                "The room you are trying to update has been modified by another user. Please refresh and try again."
+            );
+        }
+
+        return true;
+    }
 }
