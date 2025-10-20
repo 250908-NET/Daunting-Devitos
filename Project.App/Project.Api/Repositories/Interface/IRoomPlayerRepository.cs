@@ -13,7 +13,7 @@ namespace Project.Api.Repositories.Interface
         Task<IEnumerable<RoomPlayer>> GetAllAsync();
         Task<IEnumerable<RoomPlayer>> GetByRoomIdAsync(Guid roomId);
         Task<IEnumerable<RoomPlayer>> GetByUserIdAsync(Guid userId);
-        Task<RoomPlayer?> GetByRoomAndUserAsync(Guid roomId, Guid userId);
+        Task<RoomPlayer?> GetByRoomIdAndUserIdAsync(Guid roomId, Guid userId);
         Task<IEnumerable<RoomPlayer>> GetActivePlayersInRoomAsync(Guid roomId);
         Task<RoomPlayer> CreateAsync(RoomPlayer roomPlayer);
         Task<RoomPlayer> UpdateAsync(RoomPlayer roomPlayer);

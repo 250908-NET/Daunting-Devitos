@@ -57,7 +57,7 @@ public class RoomPlayerRepository : IRoomPlayerRepository
             .ToListAsync();
     }
 
-    public async Task<RoomPlayer?> GetByRoomAndUserAsync(Guid roomId, Guid userId)
+    public async Task<RoomPlayer?> GetByRoomIdAndUserIdAsync(Guid roomId, Guid userId)
     {
         return await _context
             .RoomPlayers.Include(rp => rp.Room)
