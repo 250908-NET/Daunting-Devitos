@@ -329,7 +329,6 @@ public class UserRepositoryTests
             Id = Guid.NewGuid(),
             Name = "Test User",
             Email = "test@example.com",
-            PasswordHash = "hashedpassword",
         };
 
         // Assert
@@ -345,7 +344,6 @@ public class UserRepositoryTests
             Id = Guid.NewGuid(),
             Name = "Test User",
             Email = "test@example.com",
-            PasswordHash = "hashedpassword",
         };
 
         // Assert
