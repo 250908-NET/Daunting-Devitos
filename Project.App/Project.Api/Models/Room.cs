@@ -25,6 +25,8 @@ public class Room
     [MaxLength(50)]
     public required string GameMode { get; set; }
 
+    public required string GameConfig { get; set; }
+
     public required string GameState { get; set; }
 
     [MaxLength(500)]

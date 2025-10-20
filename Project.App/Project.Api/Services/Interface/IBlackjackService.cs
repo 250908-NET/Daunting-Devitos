@@ -11,4 +11,4 @@ public record BlackjackState : GameState<BlackjackStage>
 /// <summary>
 /// Represents a service for handling blackjack logic.
 /// </summary>
-public interface IBlackjackService : IGameService<BlackjackState> { }
+public interface IBlackjackService : IGameService<BlackjackState, BlackjackConfig> { }

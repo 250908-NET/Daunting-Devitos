@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Project.Api.DTOs;
+using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
@@ -46,9 +47,18 @@ close room
 
 */
 
-public class BlackjackService(IRoomRepository roomRepository) : IBlackjackService
+public class BlackjackService(IRoomRepository roomRepository, IUserRepository userRepository)
+    : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
+    private readonly IUserRepository _userRepository = userRepository;
+
+    private BlackjackConfig _config = new();
+    public BlackjackConfig Config
+    {
+        get => _config;
+        set => _config = value;
+    }
 
     public async Task<BlackjackState> GetGamestateAsync(Guid gameId)
     {
@@ -84,12 +94,19 @@ public class BlackjackService(IRoomRepository roomRepository) : IBlackjackServic
             return false; // or throw an exception
         }
 
+        // check if player exists
+        User player =
+            await _userRepository.GetByIdAsync(playerId)
+            ?? throw new InvalidOperationException("Player does not exist.");
+
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
         // do the action :)
         switch (actionDTO)
         {
             case BetAction betAction:
+
+                // add player to room, if they're not already there
 
                 throw new NotImplementedException();
             case HitAction hitAction:
