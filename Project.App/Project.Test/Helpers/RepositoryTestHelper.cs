@@ -23,7 +23,6 @@ public static class RepositoryTestHelper
         Guid? id = null,
         string? name = null,
         string? email = null,
-        string? passwordHash = null,
         double balance = 1000
     )
     {
@@ -32,7 +31,6 @@ public static class RepositoryTestHelper
             Id = id ?? Guid.NewGuid(),
             Name = name ?? "Test User",
             Email = email ?? $"test{Guid.NewGuid()}@example.com",
-            PasswordHash = passwordHash ?? "hashedpassword123",
             Balance = balance,
         };
     }
