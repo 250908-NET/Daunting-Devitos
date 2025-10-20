@@ -14,7 +14,7 @@ public interface IRoomRepository
     Task<bool> DeleteAsync(Guid id);
     Task<bool> ExistsAsync(Guid id);
     Task<string> GetGameStateAsync(Guid id);
-    Task<bool> UpdateGamestateAsync(Guid id, string gamestate);
+    Task<bool> UpdateGameStateAsync(Guid id, string gamestate);
     Task<string> GetGameConfigAsync(Guid id);
     Task<bool> UpdateGameConfigAsync(Guid id, string gameConfig);
 }
