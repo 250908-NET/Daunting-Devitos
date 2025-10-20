@@ -11,6 +11,8 @@ namespace Project.Test.Tests.Repositories;
 
 public class RoomPlayerRepositoryTests
 {
+    #region Bet
+
     [Fact]
     public async Task GetByIdAsync_ReturnsRoomPlayer_WhenRoomPlayerExists()
     {
@@ -891,4 +893,8 @@ public class RoomPlayerRepositoryTests
         result.Should().Contain(rp => rp.Status == Status.Away);
         result.Should().Contain(rp => rp.Status == Status.Left);
     }
+
+    #endregion
+
+    
 }
