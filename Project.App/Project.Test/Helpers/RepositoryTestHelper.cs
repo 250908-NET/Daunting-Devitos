@@ -53,8 +53,8 @@ public static class RepositoryTestHelper
         {
             Id = id ?? Guid.NewGuid(),
             HostId = hostId ?? Guid.NewGuid(),
-            isPublic = isPublic,
-            isActive = isActive,
+            IsPublic = isPublic,
+            IsActive = isActive,
             CreatedAt = DateTime.UtcNow,
             GameMode = gameMode ?? "Texas Hold'em",
             GameState = gameState ?? "Waiting",

@@ -215,7 +215,7 @@ public class RoomPlayerRepositoryTests
         await context.SaveChangesAsync();
 
         // Act
-        var result = await repository.GetByRoomAndUserAsync(room.Id, user.Id);
+        var result = await repository.GetByRoomIdAndUserIdAsync(room.Id, user.Id);
 
         // Assert
         result.Should().NotBeNull();
@@ -234,7 +234,10 @@ public class RoomPlayerRepositoryTests
         var nonExistentUserId = Guid.NewGuid();
 
         // Act
-        var result = await repository.GetByRoomAndUserAsync(nonExistentRoomId, nonExistentUserId);
+        var result = await repository.GetByRoomIdAndUserIdAsync(
+            nonExistentRoomId,
+            nonExistentUserId
+        );
 
         // Assert
         result.Should().BeNull();
