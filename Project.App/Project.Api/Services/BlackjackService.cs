@@ -129,17 +129,39 @@ public class BlackjackService(
         switch (actionDTO)
         {
             case BetAction betAction:
-                // deduct bet account from player's room balance
+                // check if player has enough chips
                 if (player.Balance < betAction.Amount)
                 {
                     return false; // or throw an exception
                 }
-                player.Balance -= betAction.Amount;
-                player.BalanceDelta -= betAction.Amount;
+
+                BlackjackBettingStage stage = (BlackjackBettingStage)state.Stage;
+
+                // set bet in gamestate
+                stage.Bets[player.Id] = betAction.Amount;
 
                 player.Status = Status.Active;
 
                 await _roomPlayerRepository.UpdateAsync(player);
+
+                // if not past deadline, do not move to next stage
+                if (DateTime.UtcNow < stage.Deadline)
+                {
+                    return true;
+                }
+
+                // all bets final
+                foreach (Guid better in stage.Bets.Keys)
+                {
+                    await _roomPlayerRepository.UpdatePlayerBalanceAsync(
+                        better,
+                        stage.Bets[better]
+                    );
+                }
+
+                // move to next stage
+                state.Stage = new BlackjackPlayerActionStage(0);
+                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
                 return true;
             case HitAction hitAction:

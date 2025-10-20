@@ -19,7 +19,8 @@ public record BlackjackInitStage : BlackjackStage;
 public record BlackjackSetupStage : BlackjackStage;
 
 // waiting for players to bet
-public record BlackjackBettingStage(DateTimeOffset Deadline) : BlackjackStage;
+public record BlackjackBettingStage(DateTimeOffset Deadline, Dictionary<Guid, long> Bets)
+    : BlackjackStage;
 
 // dealing
 public record BlackjackDealingStage : BlackjackStage;
