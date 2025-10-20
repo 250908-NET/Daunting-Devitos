@@ -66,8 +66,8 @@ public class Program
             .AddCookie() // issues and validates the auth cookie after Google login
             .AddGoogle(options =>
             {
-                options.ClientId = builder.Configuration["Google:ClientId"]; //  from secrets / config
-                options.ClientSecret = builder.Configuration["Google:ClientSecret"]; //  from secrets / config
+                options.ClientId = builder.Configuration["Google:ClientId"]!; //  from secrets / config
+                options.ClientSecret = builder.Configuration["Google:ClientSecret"]!; //  from secrets / config
                 options.CallbackPath = "/auth/google/callback"; //  google redirects here after login if we change this we need to change it on google cloud as well!
                 options.Events = new OAuthEvents
                 { //TEMPORARILY COMMENTED OUR BELOW BECAUSE IT WAS MESSING WITH GOOGLE AUTH LOGIN FOR SOME REASON GOTTA CHECK THIS LATER
