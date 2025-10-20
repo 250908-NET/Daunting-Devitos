@@ -136,7 +136,6 @@ namespace Project.Api.Services
                         Email = email,
                         Name = string.IsNullOrWhiteSpace(name) ? email : name!,
                         AvatarUrl = avatarUrl,
-                        PasswordHash = "GOOGLE-LOGIN-NO-PASSWORD", // temporary I think we can remove this once we talk about it
                     };
 
                     await _repo.AddAsync(user);
