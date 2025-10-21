@@ -22,6 +22,23 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        const string CorsPolicy = "FrontendCors";
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy(
+                CorsPolicy,
+                policy =>
+                {
+                    policy
+                        .WithOrigins("http://localhost:3000", "https://localhost:3000") //  Next.js dev origin add other frontend origins below this when we move to server
+                        .AllowAnyHeader()
+                        .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .AllowCredentials(); // required cookie for auth
+                }
+            );
+        });
+
         builder.Configuration.AddJsonFile(
             "adminsetting.json",
             optional: true,
@@ -51,6 +68,18 @@ public class Program
         //Auto Mapper
         builder.Services.AddAutoMapper(typeof(Program));
 
+        // CORS configuration
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.WithOrigins("http://localhost:3000") // Your Next.js frontend
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials(); // Required for cookies
+            });
+        });
+
         builder.Services.AddAuthorization();
 
         //sanity check for auth errors logging
@@ -71,7 +100,28 @@ public class Program
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme; // where the app reads identity from on each request
                 options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // how the app prompts an unauthenticated user to log in
             })
-            .AddCookie() // issues and validates the auth cookie after Google login
+            .AddCookie(cookie =>
+            {
+                // cross-site cookie SPA on :3000 to API on :7069
+                cookie.Cookie.SameSite = SameSiteMode.None;
+                // browsers require Secure when SameSite=None this is why we need https instead of http
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+                // for APIs return status codes instead of 302 redirects
+                cookie.Events = new CookieAuthenticationEvents
+                {
+                    OnRedirectToLogin = ctx =>
+                    {
+                        ctx.Response.StatusCode = 401;
+                        return Task.CompletedTask;
+                    },
+                    OnRedirectToAccessDenied = ctx =>
+                    {
+                        ctx.Response.StatusCode = 403;
+                        return Task.CompletedTask;
+                    },
+                };
+            })
             .AddGoogle(options =>
             {
                 options.ClientId = builder.Configuration["Google:ClientId"]!; //  from secrets / config
@@ -128,6 +178,7 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        app.UseCors(CorsPolicy); // Enable CORS with our policy
         app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseAuthorization();
