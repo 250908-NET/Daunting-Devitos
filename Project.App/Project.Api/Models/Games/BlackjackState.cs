@@ -32,7 +32,7 @@ public record BlackjackDealingStage : BlackjackStage;
 
 // player turn
 // TODO: figure out how turn order will work
-public record BlackjackPlayerActionStage(int Index) : BlackjackStage;
+public record BlackjackPlayerActionStage(DateTimeOffset Deadline, int Index) : BlackjackStage;
 
 // dealer turn and distribute winnings
 public record BlackjackFinishRoundStage : BlackjackStage;
