@@ -1,4 +1,5 @@
 import { use } from 'react';
+import BlackjackTable from "../../components/blackjack/BlackJackTable";
 
 export default function GamePage({ params }) {
   const { id } = use(params);
@@ -16,6 +17,10 @@ export default function GamePage({ params }) {
       <h1 className="text-4xl font-bold bg-gradient-to-b from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent mb-6 relative z-10">
         Game Table ID: {id}
       </h1>
+
+      <div className="relative z-10">
+        <BlackjackTable roomId={id} />
+      </div>
       {/* Game  implementation will go here */}
     </div>
   );
