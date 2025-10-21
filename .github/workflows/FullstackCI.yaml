@@ -200,6 +200,8 @@ jobs:
       - name: Add PR comment if formatting checks fail
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required for github CLI to authenticate
+          FRONTEND_OUTPUT: ${{ needs.frontend.outputs.format_output }} # ensure special characters are escaped
+          BACKEND_OUTPUT: ${{ needs.backend.outputs.format_output }} # ensure special characters are escaped
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           COMMENT_BODY="### Formatting Issues Detected!\n\n"
@@ -208,13 +210,15 @@ jobs:
           if [ "${{ needs.backend.outputs.outcome }}" == "failure" ]; then
             COMMENT_BODY+="- **Backend (Csharpier):** Please run \`dotnet csharpier format .\` to fix formatting.\n"
             # add collapsible section for backend output
-            COMMENT_BODY+="<details><summary>View Csharpier output</summary>\n\n\`\`\`\n${{ needs.backend.outputs.format_output }}\n\`\`\`\n\n</details>\n\n"
+            backend_details=$(printf '<details><summary>View Csharpier output</summary>\n\n```\n%s\n```\n\n</details>\n\n' "$BACKEND_OUTPUT")
+            COMMENT_BODY+="$backend_details"
             HAS_ISSUES=true
           fi
           if [ "${{ needs.frontend.outputs.outcome }}" == "failure" ]; then
             COMMENT_BODY+="- **Frontend (Prettier):** Please run \`npm run format\` in \`Project.App/Project.Client\` to fix formatting.\n"
             # add collapsible section for frontend output
-            COMMENT_BODY+="<details><summary>View Prettier output</summary>\n\n\`\`\`\n${{ needs.frontend.outputs.format_output }}\n\`\`\`\n\n</details>\n\n"
+            frontend_details=$(printf '<details><summary>View Prettier output</summary>\n\n```\n%s\n```\n\n</details>\n\n' "$FRONTEND_OUTPUT")
+            COMMENT_BODY+="$frontend_details"
             HAS_ISSUES=true
           fi
 
