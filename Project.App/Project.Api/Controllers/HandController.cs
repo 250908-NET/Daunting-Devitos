@@ -5,7 +5,6 @@ using Project.Api.DTOs;
 using Project.Api.Models;
 using Project.Api.Repositories;
 using Project.Api.Services;
-using Project.DTOs;
 using Serilog;
 
 namespace Project.Api.Controllers

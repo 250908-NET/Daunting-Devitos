@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
-using Project.DTOs;
+using Project.Api.DTOs;
 using Serilog;
 
 namespace Project.Api.Controllers
