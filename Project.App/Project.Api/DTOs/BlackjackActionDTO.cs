@@ -15,7 +15,7 @@ public record StandAction : BlackjackActionDTO;
 
 public record DoubleAction : BlackjackActionDTO;
 
-public record SplitAction : BlackjackActionDTO;
+public record SplitAction(long Amount) : BlackjackActionDTO;
 
 public record SurrenderAction : BlackjackActionDTO;
 

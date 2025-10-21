@@ -132,13 +132,16 @@ public class RoomPlayerRepository(AppDbContext context) : IRoomPlayerRepository
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdatePlayerBalanceAsync(Guid id, long balance)
+    /// <summary>
+    /// Adds the specified amount to the player's balance (can be negative).
+    /// </summary>
+    public async Task UpdatePlayerBalanceAsync(Guid id, long change)
     {
         RoomPlayer roomPlayer =
             await _context.RoomPlayers.FindAsync(id)
             ?? throw new NotFoundException("Player not found");
 
-        roomPlayer.Balance = balance;
+        roomPlayer.Balance += change;
         await _context.SaveChangesAsync();
     }
 }
