@@ -31,7 +31,7 @@ public class Program
                 policy =>
                 {
                     policy
-                        .WithOrigins("http://localhost:3000") //  Next.js dev origin add other frontend origins below this when we move to server
+                        .WithOrigins("http://localhost:3000", "https://localhost:3000") //  Next.js dev origin add other frontend origins below this when we move to server
                         .AllowAnyHeader()
                         .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .AllowCredentials(); // required cookie for auth
@@ -170,11 +170,8 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        app.UseCors(); // Enable CORS
+        app.UseCors(CorsPolicy); // Enable CORS with our policy
         app.UseHttpsRedirection();
-
-        app.UseCors(CorsPolicy);
-
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();

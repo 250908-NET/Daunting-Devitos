@@ -8,19 +8,27 @@ export default function RoomsClient({ rooms }) {
   const router = useRouter();
 
   useEffect(() => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7069/';
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7069';
+    console.log('[RoomsClient] Checking authentication...');
+    
     fetch(`${apiBaseUrl}/auth/me`, { credentials: 'include' })
       .then((res) => {
+        console.log('[RoomsClient] Auth response status:', res.status);
         if (!res.ok) {
+          console.log('[RoomsClient] Not authenticated, redirecting to /login');
           router.replace('/login');
         } else {
-          res.json().then(data => {
-            console.log('Authenticated user:', data);
-          });
+          return res.json();
+        }
+      })
+      .then((data) => {
+        if (data) {
+          console.log('[RoomsClient] ✅ Authenticated as:', data.name);
+          console.log('[RoomsClient] Full user data:', data);
         }
       })
       .catch((err) => {
-        console.error('Auth check failed:', err);
+        console.error('[RoomsClient] Auth check failed:', err);
         router.replace('/login');
       });
   }, [router]);

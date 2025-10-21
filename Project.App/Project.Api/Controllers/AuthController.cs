@@ -16,15 +16,40 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public IActionResult Login([FromQuery] string? returnUrl = null)
     {
-        var safe =
-            string.IsNullOrEmpty(returnUrl) || !Url.IsLocalUrl(returnUrl) ? "/swagger" : returnUrl; //used parameter return url otherwise to swagger
+        Console.WriteLine($"[AUTH] Login called with returnUrl: {returnUrl}");
+        
+        // Allow frontend URLs (localhost:3000 or your production frontend)
+        var allowedOrigins = new[] { "http://localhost:3000", "https://localhost:3000" };
+        var safe = "/swagger"; // default fallback
+
+        if (!string.IsNullOrEmpty(returnUrl))
+        {
+            // Check if returnUrl is a local path or starts with an allowed origin
+            if (Url.IsLocalUrl(returnUrl) || allowedOrigins.Any(origin => returnUrl.StartsWith(origin)))
+            {
+                safe = returnUrl;
+                Console.WriteLine($"[AUTH] returnUrl accepted: {safe}");
+            }
+            else
+            {
+                Console.WriteLine($"[AUTH] returnUrl rejected, using fallback: {safe}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[AUTH] No returnUrl provided, using fallback: {safe}");
+        }
 
         if (User.Identity?.IsAuthenticated == true)
-            return LocalRedirect(safe);
+        {
+            Console.WriteLine($"[AUTH] User already authenticated, redirecting to: {safe}");
+            return Redirect(safe);
+        }
 
         var props = new AuthenticationProperties { RedirectUri = safe };
-        props.SetParameter("prompt", "select_account"); // this checks the account picker regardless of what google stored in its whos logged in information
+        props.SetParameter("prompt", "select_account");
 
+        Console.WriteLine($"[AUTH] Challenging with RedirectUri: {safe}");
         return Challenge(props, GoogleDefaults.AuthenticationScheme);
     }
 
