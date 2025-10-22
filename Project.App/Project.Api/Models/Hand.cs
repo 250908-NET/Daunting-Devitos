@@ -7,6 +7,7 @@ namespace Project.Api.Models;
 public class Hand
 {
     [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 
     public Guid RoomPlayerId { get; set; }

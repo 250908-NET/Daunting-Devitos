@@ -170,7 +170,7 @@ public class BlackjackServiceTest
     {
         // Arrange
         var roomId = Guid.NewGuid();
-        var gameState = new BlackjackState { CurrentStage = new BlackjackPlayerActionStage(0) };
+    var gameState = new BlackjackState { CurrentStage = new BlackjackPlayerActionStage(DateTimeOffset.UtcNow.AddMinutes(1), 0) };
         var gameStateString = JsonSerializer.Serialize(gameState);
 
         _roomRepositoryMock.Setup(r => r.GetGameStateAsync(roomId)).ReturnsAsync(gameStateString);

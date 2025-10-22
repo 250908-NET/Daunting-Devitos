@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Project.Api.DTOs;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
-using Project.DTOs;
 using Serilog;
 
 namespace Project.Api.Controllers

@@ -49,7 +49,7 @@ namespace Project.Test.Repository
 
             // Act
             var repo = new HandRepository(context);
-            Hand? res = await repo.GetHandAsyncById(context.Hands.First().Id);
+            Hand? res = await repo.GetHandByIdAsync(context.Hands.First().Id);
 
             // Assert
 
@@ -85,7 +85,7 @@ namespace Project.Test.Repository
             // Assert
             await Assert.ThrowsAsync<Exception>(async () =>
             {
-                Hand? res = await repo.GetHandAsyncById(Guid.NewGuid());
+                Hand? res = await repo.GetHandByIdAsync(Guid.NewGuid());
             });
         }
 
@@ -300,7 +300,7 @@ namespace Project.Test.Repository
 
             // Assert
 
-            var res = await repo.GetHandAsyncById(handId);
+            var res = await repo.GetHandByIdAsync(handId);
             Assert.NotNull(res);
             Assert.Equal(2, res.Order);
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
