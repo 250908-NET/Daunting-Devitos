@@ -345,30 +345,89 @@ public class BlackjackService(
             state.CurrentStage = new BlackjackFinishRoundStage();
             await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
-            // Simulate dealer play - in a real implementation, this would use the deck API
-            // to draw cards for the dealer until 17 or higher
-            int dealerValue = CalculateHandValue(state.DealerHand);
-            Console.WriteLine($"Dealer hand value: {dealerValue}");
+            // Use the roomId as a string to identify our deck
+            string deckIdentifier = roomId.ToString();
+
+            // Dealer plays - hit until 17 or higher
+            // Keep drawing cards until dealer's hand value is 17 or higher
+            while (CalculateHandValue(state.DealerHand) < 17)
+            {
+                try
+                {
+                    // Draw cards using the deck API service
+                    List<CardDTO> drawnCards = await _deckApiService.DrawCards(deckIdentifier, "dealer", 1);
+                    
+                    // Add the drawn cards to the dealer's hand
+                    foreach (var card in drawnCards)
+                    {
+                        // Convert CardDTO to the format expected in dealer's hand
+                        var dealerCard = new
+                        {
+                            value = card.value,
+                            suit = card.suit,
+                            code = card.code,
+                            image = card.image
+                        };
+                        
+                        state.DealerHand.Add(dealerCard);
+                    }
+                    
+                    // Update the game state with the new dealer's hand
+                    await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+                    
+                    Console.WriteLine($"Dealer drew {drawnCards.Count} card(s). Current hand value: {CalculateHandValue(state.DealerHand)}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error drawing cards: {ex.Message}");
+                    // If we can't draw cards (maybe deck doesn't exist), create a new deck
+                    await _deckApiService.CreateDeck(6, false);
+                    await _deckApiService.CreateEmptyHand(deckIdentifier, "dealer");
+                    break; // Prevent infinite loop in case of persistent errors
+                }
+            }
 
             // Get all active players in the room
             IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
 
+            // Get the dealer's final hand value
+            int dealerValue = CalculateHandValue(state.DealerHand);
+            Console.WriteLine($"Dealer's final hand value: {dealerValue}");
+
             // Process player bets based on blackjack rules
-            // In a complete implementation, this would compare player hands to dealer hands
-            // For now, we'll simulate the results
             foreach (RoomPlayer player in activePlayers)
             {
                 // In a real implementation, we would get the player's hands and compare with dealer
-                // For now, simulate a win (let's say 50% win chance)
-                if (Random.Shared.Next(100) < 50)
+                // For now, simulate a comparison between player and dealer hands
+                
+                // Simulate player hand value (in a real implementation, this would be from the database)
+                int playerValue = Random.Shared.Next(16, 22); // Random value between 16-21
+                
+                // Calculate winnings based on blackjack rules
+                long winnings = 0;
+                if (dealerValue > 21 || (playerValue <= 21 && playerValue > dealerValue))
                 {
-                    // Player wins - add winnings to balance
-                    // Simulate a fixed bet amount since we can't access previous stage data
-                    long winnings = 100; // Default winnings amount
+                    // Player wins
+                    winnings = 100; // Simulated bet amount
                     await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, winnings);
-                    Console.WriteLine($"Player {player.Id} won {winnings} chips");
+                    Console.WriteLine($"Player {player.Id} won with {playerValue} vs dealer's {dealerValue}. Winnings: {winnings} chips");
+                }
+                else if (playerValue == dealerValue)
+                {
+                    // Push - return original bet
+                    winnings = 50; // Half the simulated bet
+                    await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, winnings);
+                    Console.WriteLine($"Player {player.Id} pushed with {playerValue} vs dealer's {dealerValue}. Returned: {winnings} chips");
+                }
+                else
+                {
+                    // Player loses - no action needed as bet was already deducted
+                    Console.WriteLine($"Player {player.Id} lost with {playerValue} vs dealer's {dealerValue}");
                 }
             }
+
+            // Return all cards to the deck for the next round
+            await _deckApiService.ReturnAllCardsToDeck(deckIdentifier);
 
             // Initialize next betting stage
             state.CurrentStage = new BlackjackBettingStage(
@@ -380,6 +439,7 @@ public class BlackjackService(
             state.DealerHand.Clear();
 
             await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+            Console.WriteLine("Round finished and new betting stage initialized");
         }
         catch (Exception ex)
         {
