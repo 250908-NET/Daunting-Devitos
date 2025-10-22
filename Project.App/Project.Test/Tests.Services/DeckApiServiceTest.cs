@@ -125,7 +125,7 @@ namespace Project.Test.Services
             var service = new DeckApiService(client);
 
             // Act
-            var result = await service.PlayerDraw("deck123", 42);
+            var result = await service.DrawCards("deck123", 42);
 
             // Assert
             Assert.NotNull(result);
