@@ -223,6 +223,7 @@ public class BlackjackService(
                             totalValue += 10;
                             break;
                         default:
+                        //Number cards (2–10) → handled by:
                             if (int.TryParse(card.value, out int val))
                                 totalValue += val;
                             break;
