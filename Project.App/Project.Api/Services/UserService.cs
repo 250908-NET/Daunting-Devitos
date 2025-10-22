@@ -138,6 +138,11 @@ namespace Project.Api.Services
                         AvatarUrl = avatarUrl,
                     };
 
+                    _logger.LogInformation(
+                        "UpsertGoogleUserByEmailAsync called for {Email}",
+                        email
+                    );
+
                     await _repo.AddAsync(user);
                     return user;
                 }
@@ -161,6 +166,11 @@ namespace Project.Api.Services
                 );
                 throw;
             }
+        }
+
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _repo.GetByEmailAsync(email);
         }
     }
 }

@@ -19,5 +19,7 @@ namespace Project.Api.Services
         Task<User> UpdateUserBalanceAsync(Guid userId, double newBalance);
 
         Task<User> UpsertGoogleUserByEmailAsync(string email, string? name, string? avatarUrl); //update + insert new google login to our db
+
+        Task<User?> GetByEmailAsync(string email);
     }
 }
