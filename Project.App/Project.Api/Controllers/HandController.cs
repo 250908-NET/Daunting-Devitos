@@ -89,7 +89,8 @@ namespace Project.Api.Controllers
             await _handService.AddCardsToHandAsync(handId);
             /*var updatedHandDto = _mapper.Map<List<CardDTO>>(updatedHand);
             return Ok(updatedHandDto);*/
-            return Ok(/*updatedHandDto*/);
+            return Ok( /*updatedHandDto*/
+            );
         }
 
         [HttpPatch("/{handId}/bet", Name = "UpdateHandBet")]

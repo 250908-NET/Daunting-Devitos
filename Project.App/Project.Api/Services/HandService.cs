@@ -112,12 +112,13 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
-    public async Task/*<List<CardDTO>>*/ AddCardsToHandAsync(Guid handId)
+
+    public async Task /*<List<CardDTO>>*/
+    AddCardsToHandAsync(Guid handId)
     {
         try
         {
-            Hand hand = await GetHandByIdAsync(handId)
-                ?? throw new Exception("Hand not found");
+            Hand hand = await GetHandByIdAsync(handId) ?? throw new Exception("Hand not found");
             /*command here*/
             //send Add a card and get a List of CardDTOs
         }
@@ -127,16 +128,12 @@ public class HandService : IHandService
             _logger.LogError(e, $"Error adding cards to hand {handId}: {e.Message}");
             throw new Exception(e.Message);
         }
-        
+
         // Call to Deck Api Service to add a card
     }
 
     // Partially update an existing hand
-    public async Task<Hand> PatchHandAsync(
-        Guid handId,
-        int? Order = null,
-        int? Bet = null
-    )
+    public async Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null)
     {
         try
         {

@@ -20,12 +20,9 @@ public interface IHandService
 
     Task<Hand> UpdateHandAsync(Guid handId, Hand hand);
 
-    Task<Hand> PatchHandAsync(
-        Guid handId,
-        int? Order = null,
-        int? Bet = null
-    );
-    Task/*<List<CardDTO>>*/ AddCardsToHandAsync(Guid handId);
+    Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null);
+    Task /*<List<CardDTO>>*/
+    AddCardsToHandAsync(Guid handId);
 
     Task<Hand> DeleteHandAsync(Guid handId);
 }

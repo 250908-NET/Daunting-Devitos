@@ -109,11 +109,7 @@ public class HandRepository : IHandRepository
     }
 
     // update specific properties of an existing hand
-    public async Task<Hand> PatchHandAsync(
-        Guid handId,
-        int? Order = null,
-        int? Bet = null
-    )
+    public async Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null)
     {
         // Check if hand exists and retrieve it
         var existingHand =

@@ -98,7 +98,7 @@ namespace Project.Test.Controllers
             // Act
 
             var result = await _controller.GetHandById(handId, roomId);
-            
+
             Assert.IsType<NotFoundObjectResult>(result);
 
             // Assert
