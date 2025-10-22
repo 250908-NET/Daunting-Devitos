@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Project.Api.DTOs;
 using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
+using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
@@ -71,12 +73,16 @@ solution (the funny one):
 public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
-    IUserRepository userRepository
+    IUserRepository userRepository,
+    IHandRepository handRepository
+    //IDeckApiService deckApiService
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
+    private readonly IHandRepository _handRepository = handRepository;
+    private readonly IDeckApiService _deckApiService = deckApiService;
 
     private BlackjackConfig _config = new();
     public BlackjackConfig Config
@@ -185,14 +191,71 @@ public class BlackjackService(
 
                 break;
             case HitAction hitAction:
-                // draw a card and add to player's hand
+                // Fetch player’s hand
+                var hand = await _handRepository.GetHandsByRoomIdAsync(player.Id)
+                    ?? throw new BadRequestException("No hand found for this player.");
 
-                // go back to player again
-                throw new NotImplementedException();
-            case StandAction standAction:
-                // next player or next stage
+                // Retrieve deck ID from room configuration or state
+                var room = await _roomRepository.GetByIdAsync(roomId)
+                    ?? throw new BadRequestException("Room not found.");
+
+                // Draw one card and add it to player’s hand
+                var drawnCards = await _deckApiService.PlayerDraw(room.DeckId, hand.Id.GetHashCode());
+
+                // Merge cards
+                var existingCards = string.IsNullOrEmpty(hand.CardsJson)
+                    ? new List<CardDTO>()
+                    : JsonSerializer.Deserialize<List<CardDTO>>(hand.CardsJson) ?? new List<CardDTO>();
+
+                existingCards.AddRange(drawnCards);
+                hand.CardsJson = JsonSerializer.Serialize(existingCards);
+                await _handRepository.UpdateHandAsync(hand.Id, hand);
+                
+                // --- Calculate total value and check for bust ---
+                int totalValue = 0;
+                int aceCount = 0;
+
+                foreach (var card in existingCards)
+                {
+                    switch (card.Symbol)
+                    {
+                        case "A":
+                            aceCount++;
+                            totalValue += 11; // initially count Aces as 11
+                            break;
+                        case "K":
+                        case "Q":
+                        case "J":
+                            totalValue += 10;
+                            break;
+                        default:
+                            if (int.TryParse(card.Symbol, out int value))
+                                totalValue += value;
+                            break;
+                    }
+                }
+
+                // Adjust for Aces if total > 21
+                while (totalValue > 21 && aceCount > 0)
+                {
+                    totalValue -= 10;
+                    aceCount--;
+                }
+
+                // Check for bust
+                if (totalValue > 21)
+                {
+                    await _roomPlayerRepository.UpdateAsync(player);
+                    await NextHandOrFinishRoundAsync(state);
+                }
                 await NextHandOrFinishRoundAsync(state);
-                throw new NotImplementedException();
+                break;
+            case StandAction standAction:
+                var hands = await _handRepository.GetHandsByRoomIdAsync(player.Id)
+                    ?? throw new BadRequestException("No hand found for this player.");
+
+                await NextHandOrFinishRoundAsync(state);
+                break;
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
 
