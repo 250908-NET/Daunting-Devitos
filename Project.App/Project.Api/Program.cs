@@ -12,6 +12,7 @@ using Project.Api.Data;
 using Project.Api.Middleware;
 using Project.Api.Repositories;
 using Project.Api.Services;
+using Project.Api.Services.Interface;
 using Serilog;
 
 namespace Project.Api;
@@ -64,6 +65,8 @@ public class Program
         builder.Services.AddScoped<IHandService, HandService>();
 
         builder.Services.AddScoped<IHandRepository, HandRepository>();
+
+        builder.Services.AddSingleton<IRoomSSEService, RoomSSEService>();
 
         //Auto Mapper
         builder.Services.AddAutoMapper(typeof(Program));
