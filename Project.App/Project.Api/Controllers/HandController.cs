@@ -21,8 +21,6 @@ namespace Project.Api.Controllers
 
         private readonly IMapper _mapper;
 
-
-
         public HandController(
             ILogger<HandController> logger,
             IHandService handService,
@@ -35,8 +33,6 @@ namespace Project.Api.Controllers
             _deckApiService = deckApiService;
             _mapper = mapper;
         }
-
-
 
         [HttpGet("/", Name = "GetHandsByRoomId")]
         public async Task<IActionResult> GetHandsByRoomId(Guid roomId)
@@ -95,7 +91,9 @@ namespace Project.Api.Controllers
         {
             try
             {
-                Hand hand = await _handService.GetHandByIdAsync(handId) ?? throw new Exception("Hand not found");
+                Hand hand =
+                    await _handService.GetHandByIdAsync(handId)
+                    ?? throw new Exception("Hand not found");
                 Room room = hand.RoomPlayer?.Room ?? throw new Exception("Room not found");
                 byte[] handBytes = handId.ToByteArray();
                 long result = BitConverter.ToInt64(handBytes, 0);

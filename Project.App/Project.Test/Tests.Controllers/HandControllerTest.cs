@@ -18,7 +18,7 @@ namespace Project.Test.Controllers
         private readonly Mock<IHandService> _mockHandService;
         private readonly Mock<IMapper> _mockMapper;
 
-    private readonly Mock<IDeckApiService> _mockDeckApiService;
+        private readonly Mock<IDeckApiService> _mockDeckApiService;
 
         private HandController _controller;
 
@@ -30,7 +30,7 @@ namespace Project.Test.Controllers
             _controller = new HandController(
                 Mock.Of<ILogger<HandController>>(),
                 _mockHandService.Object,
-                _mockDeckApiService.Object, 
+                _mockDeckApiService.Object,
                 _mockMapper.Object
             );
         }
@@ -268,8 +268,6 @@ namespace Project.Test.Controllers
 
             _mockHandService.Verify(service => service.CreateHandAsync(handModel), Times.Once);
         }
-
-        
 
         [Fact]
         public async Task UpdateHandBet_ReturnsOkResult_WithUpdatedHandDTO()

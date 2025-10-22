@@ -113,7 +113,7 @@ namespace Project.Test.Services
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(listResponse),
-                    }
+                    },
                 }
             );
 

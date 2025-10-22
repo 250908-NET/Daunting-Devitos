@@ -3,8 +3,8 @@
     Description: Interface for Hand service
     Children: HandService.cs
 */
-using Project.Api.Models;
 using Project.Api.DTOs;
+using Project.Api.Models;
 
 namespace Project.Api.Services;
 

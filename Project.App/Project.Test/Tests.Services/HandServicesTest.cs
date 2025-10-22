@@ -296,10 +296,7 @@ namespace Project.Test.Services
             Assert.NotNull(resultHand);
             Assert.Equal(1, resultHand.Order);
             Assert.Equal(150, resultHand.Bet);
-            _handRepositoryMock.Verify(
-                repo => repo.PatchHandAsync(handId, 2, 150),
-                Times.Once
-            );
+            _handRepositoryMock.Verify(repo => repo.PatchHandAsync(handId, 2, 150), Times.Once);
         }
 
         [Fact]
@@ -309,27 +306,14 @@ namespace Project.Test.Services
             // Arrange
 
             _handRepositoryMock
-                .Setup(repo =>
-                    repo.PatchHandAsync(
-                        handId,
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>()
-                    )
-                )
+                .Setup(repo => repo.PatchHandAsync(handId, It.IsAny<int?>(), It.IsAny<int?>()))
                 .ThrowsAsync(new Exception("Hand not found"));
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() =>
-                _handService.PatchHandAsync(handId, 2, 150)
-            );
+            await Assert.ThrowsAsync<Exception>(() => _handService.PatchHandAsync(handId, 2, 150));
 
             _handRepositoryMock.Verify(
-                repo =>
-                    repo.PatchHandAsync(
-                        handId,
-                        It.IsAny<int?>(),
-                        It.IsAny<int?>()
-                    ),
+                repo => repo.PatchHandAsync(handId, It.IsAny<int?>(), It.IsAny<int?>()),
                 Times.Once
             );
         }

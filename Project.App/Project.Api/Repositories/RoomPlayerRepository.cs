@@ -150,9 +150,7 @@ public class RoomPlayerRepository(AppDbContext context) : IRoomPlayerRepository
     /// </summary>
     public async Task UpdatePlayersInRoomAsync(Guid roomId, Action<RoomPlayer> updateAction)
     {
-        var players = await _context
-            .RoomPlayers.Where(rp => rp.RoomId == roomId)
-            .ToListAsync();
+        var players = await _context.RoomPlayers.Where(rp => rp.RoomId == roomId).ToListAsync();
 
         foreach (var player in players)
         {
