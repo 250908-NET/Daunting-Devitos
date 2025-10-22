@@ -1,12 +1,12 @@
-using Xunit;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Project.Api.Controllers;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Xunit;
 
 namespace Project.Api.Tests
 {
@@ -27,8 +27,18 @@ namespace Project.Api.Tests
             // Arrange
             var users = new List<User>
             {
-                new User { Id = Guid.NewGuid(), Name = "Sneha", Email = "sneha@example.com" },
-                new User { Id = Guid.NewGuid(), Name = "Leo", Email = "leo@example.com" }
+                new User
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Sneha",
+                    Email = "sneha@example.com",
+                },
+                new User
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Leo",
+                    Email = "leo@example.com",
+                },
             };
             _mockRepo.Setup(repo => repo.GetAllAsync()).ReturnsAsync(users);
 
@@ -46,7 +56,12 @@ namespace Project.Api.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var user = new User { Id = userId, Name = "Sneha", Email = "sneha@example.com" };
+            var user = new User
+            {
+                Id = userId,
+                Name = "Sneha",
+                Email = "sneha@example.com",
+            };
             _mockRepo.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
 
             // Act
@@ -76,7 +91,12 @@ namespace Project.Api.Tests
         public async Task CreateUser_ReturnsCreatedAtAction()
         {
             // Arrange
-            var user = new User { Id = Guid.NewGuid(), Name = "Sneha", Email = "sneha@example.com" };
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Name = "Sneha",
+                Email = "sneha@example.com",
+            };
             _mockRepo.Setup(r => r.AddAsync(It.IsAny<User>())).Returns(Task.CompletedTask);
 
             // Act

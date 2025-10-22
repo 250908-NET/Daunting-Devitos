@@ -9,6 +9,7 @@ namespace Project.Api.Models;
 public class RoomPlayer
 {
     [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 
     [Required]

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Middleware;
 using Project.Api.Repositories;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Serilog;
 
@@ -21,6 +22,23 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        const string CorsPolicy = "FrontendCors";
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy(
+                CorsPolicy,
+                policy =>
+                {
+                    policy
+                        .WithOrigins("http://localhost:3000", "https://localhost:3000") //  Next.js dev origin add other frontend origins below this when we move to server
+                        .AllowAnyHeader()
+                        .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .AllowCredentials(); // required cookie for auth
+                }
+            );
+        });
 
         builder.Configuration.AddJsonFile(
             "adminsetting.json",
@@ -40,8 +58,32 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        );
+
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IUserService, UserService>();
+
+        builder.Services.AddScoped<IHandService, HandService>();
+
+        builder.Services.AddScoped<IHandRepository, HandRepository>();
+
         //Auto Mapper
         builder.Services.AddAutoMapper(typeof(Program));
+
+        // CORS configuration
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy
+                    .WithOrigins("http://localhost:3000") // Your Next.js frontend
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials(); // Required for cookies
+            });
+        });
 
         builder.Services.AddAuthorization();
 
@@ -63,26 +105,47 @@ public class Program
                 options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme; // where the app reads identity from on each request
                 options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // how the app prompts an unauthenticated user to log in
             })
-            .AddCookie() // issues and validates the auth cookie after Google login
+            .AddCookie(cookie =>
+            {
+                // cross-site cookie SPA on :3000 to API on :7069
+                cookie.Cookie.SameSite = SameSiteMode.None;
+                // browsers require Secure when SameSite=None this is why we need https instead of http
+                cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+
+                // for APIs return status codes instead of 302 redirects
+                cookie.Events = new CookieAuthenticationEvents
+                {
+                    OnRedirectToLogin = ctx =>
+                    {
+                        ctx.Response.StatusCode = 401;
+                        return Task.CompletedTask;
+                    },
+                    OnRedirectToAccessDenied = ctx =>
+                    {
+                        ctx.Response.StatusCode = 403;
+                        return Task.CompletedTask;
+                    },
+                };
+            })
             .AddGoogle(options =>
             {
-                options.ClientId = builder.Configuration["Google:ClientId"]!; //  from secrets / config
-                options.ClientSecret = builder.Configuration["Google:ClientSecret"]!; //  from secrets / config
-                options.CallbackPath = "/auth/google/callback"; //  google redirects here after login if we change this we need to change it on google cloud as well!
-                //options.Events = new OAuthEvents
-                { //TEMPORARILY COMMENTED OUR BELOW BECAUSE IT WAS MESSING WITH GOOGLE AUTH LOGIN FOR SOME REASON GOTTA CHECK THIS LATER
-                    // OnCreatingTicket = async ctx => //currently we are accessing the user json that we get back from google oauth and using it as a quick validation check since email is our unique primary identified on users rn
-                    { /*
-                        var email = ctx.User.GetProperty("email").GetString(); //all of these checks are quick validation can be moved elsewhere when we decide where to put it
+                options.ClientId = builder.Configuration["Google:ClientId"]!;
+                options.ClientSecret = builder.Configuration["Google:ClientSecret"]!;
+                options.CallbackPath = "/auth/google/callback"; //attempting to add a user to authenticated google acc through callback
+                options.Scope.Add("email");
+                options.Scope.Add("profile");
+
+                options.Events = new OAuthEvents
+                {
+                    OnCreatingTicket = async ctx =>
+                    {
+                        var j = ctx.User;
+
+                        var email = j.TryGetProperty("email", out var e) ? e.GetString() : null;
                         var verified =
-                            ctx.User.TryGetProperty("email_verified", out var ev)
-                            && ev.GetBoolean();
-                        var name = ctx.User.TryGetProperty("name", out var n)
-                            ? n.GetString()
-                            : null;
-                        var picture = ctx.User.TryGetProperty("picture", out var p)
-                            ? p.GetString()
-                            : null;
+                            j.TryGetProperty("email_verified", out var v) && v.GetBoolean();
+                        var name = j.TryGetProperty("name", out var n) ? n.GetString() : null;
+                        var picture = j.TryGetProperty("picture", out var p) ? p.GetString() : null;
 
                         if (string.IsNullOrWhiteSpace(email) || !verified)
                         {
@@ -92,11 +155,9 @@ public class Program
 
                         var svc =
                             ctx.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                        await svc.UpsertGoogleUserByEmailAsync(email, name, picture);
-                    */
-                    }
-                }
-                ;
+                        await svc.UpsertGoogleUserByEmailAsync(email!, name, picture);
+                    },
+                };
             });
 
         var app = builder.Build();
@@ -120,6 +181,7 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        app.UseCors(CorsPolicy); // Enable CORS with our policy
         app.UseHttpsRedirection();
         app.UseAuthentication();
         app.UseAuthorization();

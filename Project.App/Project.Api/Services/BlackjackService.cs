@@ -213,6 +213,13 @@ public class BlackjackService(
                 // deal new hand (2 cards)
 
                 // next turn should be player's first hand
+                // can only be done on the player's first turn!
+
+                // check if player has enough chips to do the new bet
+
+                // deal new hand (2 cards)
+
+                // next turn should be player's first hand
                 throw new NotImplementedException();
             case SurrenderAction surrenderAction:
                 // not allowed after splitting!
