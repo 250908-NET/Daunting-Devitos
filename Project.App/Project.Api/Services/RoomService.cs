@@ -255,6 +255,11 @@ public class RoomService(
                 initialGameState = JsonSerializer.Serialize(blackjackState);
 
                 // Create empty hands in the deck for each player and the dealer
+                if (string.IsNullOrWhiteSpace(room.DeckId))
+                {
+                    throw new InternalServerException("Room DeckId is null or empty after creation.");
+                }
+
                 _logger.LogInformation("Creating empty hands for players and dealer in deck {DeckId}", room.DeckId);
 
                 // Get all players in the room
@@ -522,7 +527,7 @@ public class RoomService(
             Description = room.Description,
             MaxPlayers = room.MaxPlayers,
             MinPlayers = room.MinPlayers,
-            DeckId = room.DeckId,
+            DeckId = room.DeckId ?? string.Empty,
             CreatedAt = room.CreatedAt,
             IsActive = room.IsActive
         };
