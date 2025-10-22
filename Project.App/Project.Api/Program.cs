@@ -65,6 +65,8 @@ public class Program
         builder.Services.AddHttpClient();
         builder.Services.AddScoped<IDeckApiService, DeckApiService>();
 
+        builder.Services.AddHttpClient<IDeckApiService, DeckApiService>();
+
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IUserService, UserService>();
 
