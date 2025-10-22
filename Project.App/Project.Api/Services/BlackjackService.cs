@@ -191,8 +191,8 @@ public class BlackjackService(
                 throw new NotImplementedException();
             case StandAction standAction:
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
-                throw new NotImplementedException();
+                await NextHandOrFinishRoundAsync(state, roomId);
+                break;
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
 
@@ -203,7 +203,7 @@ public class BlackjackService(
                 // draw one card
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
+                await NextHandOrFinishRoundAsync(state, roomId);
                 throw new NotImplementedException();
             case SplitAction splitAction:
                 // can only be done on the player's first turn!
@@ -221,7 +221,7 @@ public class BlackjackService(
                 // refund half of player's bet (deduct from balance and update gamestate)
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
+                await NextHandOrFinishRoundAsync(state, roomId);
                 throw new NotImplementedException();
             default:
                 throw new NotImplementedException();
@@ -231,34 +231,90 @@ public class BlackjackService(
     /// <summary>
     /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
     /// </summary>
-    private async Task NextHandOrFinishRoundAsync(BlackjackState state)
+    private async Task NextHandOrFinishRoundAsync(BlackjackState state, Guid roomId)
     {
-        // move to next player
+        if (state.CurrentStage is not BlackjackPlayerActionStage playerActionStage)
+        {
+            throw new InvalidOperationException("Cannot move to next hand when not in player action stage.");
+        }
 
-        // if player is last player, move to next stage
-        await FinishRoundAsync(state);
+        // Get all active players in the room
+        IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
+        List<RoomPlayer> activePlayersList = activePlayers.ToList();
 
-        throw new NotImplementedException();
+        // Move to next player
+        int nextIndex = playerActionStage.Index + 1;
+
+        // If there are more players, continue with player actions
+        if (nextIndex < activePlayersList.Count)
+        {
+            state.CurrentStage = new BlackjackPlayerActionStage(
+                DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                nextIndex
+            );
+            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        }
+        else
+        {
+            // All players have finished, move to dealer turn and finish round
+            await FinishRoundAsync(state, roomId);
+        }
     }
 
-    // After the players have finished playing, the dealer's hand is resolved by drawing cards until 
-    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11 
-    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit. 
-    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win. 
-    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
-    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
+    // After the players have finished playing, the dealer's hand is resolved by drawing cards until
+    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11
+    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit.
+    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win.
+    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
+    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(BlackjackState state)
+    private async Task FinishRoundAsync(BlackjackState state, Guid roomId)
     {
-        // reveal dealer cards
+        // Transition to finish round stage
+        state.CurrentStage = new BlackjackFinishRoundStage();
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
-        // do dealer turn, if needed (until dealer has 17 or higher)
+        // TODO: Reveal dealer's hidden card (requires deck API integration)
 
-        // calculate winnings
+        // TODO: Dealer plays - hit until 17 or higher (requires deck API integration)
+        // For now, calculate dealer value from existing hand
+        // In a complete implementation:
+        // while (CalculateHandValue(state.DealerHand) < 17)
+        // {
+        //     var card = await DrawCardFromDeck(roomId);
+        //     state.DealerHand.Add(card);
+        // }
 
-        // distribute winnings
+        // TODO: Calculate winnings for each player hand
+        // Get all active players
+        IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
 
-        // initialize betting stage
-        throw new NotImplementedException();
+        // For each player:
+        // 1. Get their hands from the database
+        // 2. Calculate hand value
+        // 3. Compare with dealer hand
+        // 4. Determine winnings (blackjack pays 3:2, regular win pays 1:1, push returns bet)
+        // 5. Update player balance
+
+        foreach (RoomPlayer player in activePlayers)
+        {
+            // TODO: Implement hand evaluation and payout logic
+            // This requires:
+            // - Getting player hands from database
+            // - Parsing card data from JSON
+            // - Comparing with dealer hand
+            // - Updating balances via repository
+        }
+
+        // Initialize next betting stage
+        state.CurrentStage = new BlackjackBettingStage(
+            DateTimeOffset.UtcNow + _config.BettingTimeLimit,
+            new Dictionary<Guid, long>()
+        );
+
+        // Reset dealer hand for next round
+        state.DealerHand = [];
+
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
     }
 }
