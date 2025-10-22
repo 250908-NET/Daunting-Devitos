@@ -71,12 +71,14 @@ solution (the funny one):
 public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
-    IUserRepository userRepository
+    IUserRepository userRepository,
+    IDeckApiService deckApiService
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
+    private readonly IDeckApiService _deckApiService = deckApiService;
 
     private BlackjackConfig _config = new();
     public BlackjackConfig Config
@@ -341,36 +343,66 @@ public class BlackjackService(
         state.CurrentStage = new BlackjackFinishRoundStage();
         await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
-        // TODO: Reveal dealer's hidden card (requires deck API integration)
+        // Reveal dealer's hidden card
+        if (state.DealerHand.Count > 0 && state.DealerHand[0].IsHidden)
+        {
+            state.DealerHand[0].IsHidden = false;
+            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        }
 
-        // TODO: Dealer plays - hit until 17 or higher (requires deck API integration)
-        // For now, calculate dealer value from existing hand
-        // In a complete implementation:
-        // while (CalculateHandValue(state.DealerHand) < 17)
-        // {
-        //     var card = await DrawCardFromDeck(roomId);
-        //     state.DealerHand.Add(card);
-        // }
+        // Dealer plays - hit until 17 or higher
+        while (CalculateHandValue(state.DealerHand) < 17)
+        {
+            var drawnCards = await _deckApiService.DrawCards(state.DeckId, "dealer", 1);
+            state.DealerHand.AddRange(drawnCards.Select(card => new Card
+            {
+                Rank = card.Rank,
+                Suit = card.Suit,
+                IsHidden = false
+            }));
+            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        }
 
-        // TODO: Calculate winnings for each player hand
         // Get all active players
         IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
 
-        // For each player:
-        // 1. Get their hands from the database
-        // 2. Calculate hand value
-        // 3. Compare with dealer hand
-        // 4. Determine winnings (blackjack pays 3:2, regular win pays 1:1, push returns bet)
-        // 5. Update player balance
-
+        // Evaluate each player's hand
         foreach (RoomPlayer player in activePlayers)
         {
-            // TODO: Implement hand evaluation and payout logic
-            // This requires:
-            // - Getting player hands from database
-            // - Parsing card data from JSON
-            // - Comparing with dealer hand
-            // - Updating balances via repository
+            var playerHands = await _roomPlayerRepository.GetPlayerHandsAsync(player.Id);
+
+            foreach (var hand in playerHands)
+            {
+                int playerValue = CalculateHandValue(hand.Cards);
+                int dealerValue = CalculateHandValue(state.DealerHand);
+
+                if (playerValue > 21)
+                {
+                    // Player busts
+                    hand.Result = HandResult.Lose;
+                }
+                else if (dealerValue > 21 || playerValue > dealerValue)
+                {
+                    // Dealer busts or player wins
+                    hand.Result = HandResult.Win;
+                    player.Balance += hand.Bet * 2; // Regular win pays 1:1
+                }
+                else if (playerValue == dealerValue)
+                {
+                    // Push
+                    hand.Result = HandResult.Push;
+                    player.Balance += hand.Bet; // Return bet
+                }
+                else
+                {
+                    // Dealer wins
+                    hand.Result = HandResult.Lose;
+                }
+
+                await _roomPlayerRepository.UpdatePlayerHandAsync(hand);
+            }
+
+            await _roomPlayerRepository.UpdateAsync(player);
         }
 
         // Initialize next betting stage
@@ -380,8 +412,41 @@ public class BlackjackService(
         );
 
         // Reset dealer hand for next round
-        state.DealerHand = [];
+        state.DealerHand.Clear();
 
         await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+    }
+
+
+    //Helper to calculate hand value
+    private int CalculateHandValue(List<Card> hand)
+    {
+        int value = 0;
+        int aces = 0;
+
+        foreach (var card in hand)
+        {
+            if (card.Rank == "Ace")
+            {
+                aces++;
+                value += 11;
+            }
+            else if (card.Rank == "King" || card.Rank == "Queen" || card.Rank == "Jack")
+            {
+                value += 10;
+            }
+            else
+            {
+                value += int.Parse(card.Rank);
+            }
+        }
+
+        while (value > 21 && aces > 0)
+        {
+            value -= 10;
+            aces--;
+        }
+
+        return value;
     }
 }
