@@ -7,6 +7,7 @@ using Project.Api.DTOs;
 using Project.Api.Models;
 using Project.Api.Repositories;
 using Project.Api.Services;
+using Project.Api.Services.Interface;
 using Project.Test.Helpers;
 using Xunit;
 
@@ -17,15 +18,19 @@ namespace Project.Test.Controllers
         private readonly Mock<IHandService> _mockHandService;
         private readonly Mock<IMapper> _mockMapper;
 
+    private readonly Mock<IDeckApiService> _mockDeckApiService;
+
         private HandController _controller;
 
         public HandControllerTest()
         {
             _mockHandService = new Mock<IHandService>();
             _mockMapper = new Mock<IMapper>();
+            _mockDeckApiService = new Mock<IDeckApiService>();
             _controller = new HandController(
                 Mock.Of<ILogger<HandController>>(),
                 _mockHandService.Object,
+                _mockDeckApiService.Object, 
                 _mockMapper.Object
             );
         }
@@ -43,7 +48,6 @@ namespace Project.Test.Controllers
                     Id = handId,
                     RoomPlayerId = Guid.NewGuid(),
                     Order = 1,
-                    CardsJson = "[]",
                     Bet = 100,
                 },
                 new()
@@ -51,7 +55,6 @@ namespace Project.Test.Controllers
                     Id = Guid.NewGuid(),
                     RoomPlayerId = Guid.NewGuid(),
                     Order = 2,
-                    CardsJson = "[]",
                     Bet = 200,
                 },
                 // Add more Hand objects if needed
@@ -63,7 +66,6 @@ namespace Project.Test.Controllers
                     Id = h.Id,
                     RoomPlayerId = h.RoomPlayerId,
                     Order = h.Order,
-                    CardsJson = h.CardsJson,
                     Bet = h.Bet,
                 })
                 .ToList();
@@ -98,7 +100,7 @@ namespace Project.Test.Controllers
             // Act
 
             var result = await _controller.GetHandById(handId, roomId);
-            
+
             Assert.IsType<NotFoundObjectResult>(result);
 
             // Assert
@@ -124,7 +126,6 @@ namespace Project.Test.Controllers
                 },
                 RoomPlayerId = roomPlayerId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -133,7 +134,6 @@ namespace Project.Test.Controllers
                 Id = handModel.Id,
                 RoomPlayerId = handModel.RoomPlayerId,
                 Order = handModel.Order,
-                CardsJson = handModel.CardsJson,
                 Bet = handModel.Bet,
             };
 
@@ -190,7 +190,6 @@ namespace Project.Test.Controllers
                     Id = Guid.NewGuid(),
                     RoomPlayerId = Guid.NewGuid(),
                     Order = 1,
-                    CardsJson = "[]",
                     Bet = 100,
                 },
                 new()
@@ -198,7 +197,6 @@ namespace Project.Test.Controllers
                     Id = Guid.NewGuid(),
                     RoomPlayerId = Guid.NewGuid(),
                     Order = 2,
-                    CardsJson = "[]",
                     Bet = 200,
                 },
                 // Add more Hand objects if needed
@@ -210,7 +208,6 @@ namespace Project.Test.Controllers
                     Id = h.Id,
                     RoomPlayerId = h.RoomPlayerId,
                     Order = h.Order,
-                    CardsJson = h.CardsJson,
                     Bet = h.Bet,
                 })
                 .ToList();
@@ -244,7 +241,6 @@ namespace Project.Test.Controllers
                 Id = Guid.NewGuid(),
                 RoomPlayerId = Guid.NewGuid(),
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -253,7 +249,6 @@ namespace Project.Test.Controllers
                 Id = handDTO.Id,
                 RoomPlayerId = handDTO.RoomPlayerId,
                 Order = handDTO.Order,
-                CardsJson = handDTO.CardsJson,
                 Bet = handDTO.Bet,
             };
 
@@ -274,67 +269,7 @@ namespace Project.Test.Controllers
             _mockHandService.Verify(service => service.CreateHandAsync(handModel), Times.Once);
         }
 
-        // [Fact]
-        // public async Task CreateHand_ReturnsBadRequest_WhenHandDTOIsNull()
-        // {
-        //     // Arrange
-        //     var roomId = Guid.NewGuid();
-        //     HandDTO? handDTO = null; // Simulate null input
-
-        //     // Act
-
-        //     await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-        //     {
-        //         var result = await _controller.CreateHand(roomId, handDTO);
-        //     });
-
-        //     // Assert
-        //     _mockHandService.Verify(service => service.CreateHandAsync(It.IsAny<Hand>()), Times.Never);
-        // }
-        [Fact]
-        public async Task AddCardsToHand_ReturnsOkResult_WithUpdatedHandDTO()
-        {
-            // Arrange
-            var handId = Guid.NewGuid();
-            var cardsJson = "[\"AS\",\"KH\"]";
-
-            var updatedHandModel = new Hand
-            {
-                Id = handId,
-                RoomPlayerId = Guid.NewGuid(),
-                Order = 1,
-                CardsJson = cardsJson,
-                Bet = 100,
-            };
-
-            var updatedHandDTO = new HandDTO
-            {
-                Id = updatedHandModel.Id,
-                RoomPlayerId = updatedHandModel.RoomPlayerId,
-                Order = updatedHandModel.Order,
-                CardsJson = updatedHandModel.CardsJson,
-                Bet = updatedHandModel.Bet,
-            };
-
-            _mockHandService
-                .Setup(service => service.PatchHandAsync(handId, null, cardsJson, null))
-                .ReturnsAsync(updatedHandModel);
-            _mockMapper.Setup(m => m.Map<HandDTO>(It.IsAny<Hand>())).Returns(updatedHandDTO);
-
-            // Act
-            var result = await _controller.AddCardsToHand(handId, cardsJson);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnValue = Assert.IsType<HandDTO>(okResult.Value);
-            Assert.Equal(updatedHandDTO.Id, returnValue.Id);
-            Assert.Equal(updatedHandDTO.CardsJson, returnValue.CardsJson);
-
-            _mockHandService.Verify(
-                service => service.PatchHandAsync(handId, null, cardsJson, null),
-                Times.Once
-            );
-        }
+        
 
         [Fact]
         public async Task UpdateHandBet_ReturnsOkResult_WithUpdatedHandDTO()
@@ -348,7 +283,6 @@ namespace Project.Test.Controllers
                 Id = handId,
                 RoomPlayerId = Guid.NewGuid(),
                 Order = 1,
-                CardsJson = "[]",
                 Bet = newBet,
             };
 
@@ -357,12 +291,11 @@ namespace Project.Test.Controllers
                 Id = updatedHandModel.Id,
                 RoomPlayerId = updatedHandModel.RoomPlayerId,
                 Order = updatedHandModel.Order,
-                CardsJson = updatedHandModel.CardsJson,
                 Bet = updatedHandModel.Bet,
             };
 
             _mockHandService
-                .Setup(service => service.PatchHandAsync(handId, null, null, newBet))
+                .Setup(service => service.PatchHandAsync(handId, null, newBet))
                 .ReturnsAsync(updatedHandModel);
             _mockMapper.Setup(m => m.Map<HandDTO>(It.IsAny<Hand>())).Returns(updatedHandDTO);
 
@@ -376,7 +309,7 @@ namespace Project.Test.Controllers
             Assert.Equal(updatedHandDTO.Bet, returnValue.Bet);
 
             _mockHandService.Verify(
-                service => service.PatchHandAsync(handId, null, null, newBet),
+                service => service.PatchHandAsync(handId, null, newBet),
                 Times.Once
             );
         }
@@ -394,7 +327,7 @@ namespace Project.Test.Controllers
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
             _mockHandService.Verify(
-                service => service.PatchHandAsync(It.IsAny<Guid>(), null, null, It.IsAny<int>()),
+                service => service.PatchHandAsync(It.IsAny<Guid>(), null, It.IsAny<int>()),
                 Times.Never
             );
         }
@@ -410,7 +343,6 @@ namespace Project.Test.Controllers
                 Id = handId,
                 RoomPlayerId = Guid.NewGuid(),
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -419,7 +351,6 @@ namespace Project.Test.Controllers
                 Id = deletedHandModel.Id,
                 RoomPlayerId = deletedHandModel.RoomPlayerId,
                 Order = deletedHandModel.Order,
-                CardsJson = deletedHandModel.CardsJson,
                 Bet = deletedHandModel.Bet,
             };
 

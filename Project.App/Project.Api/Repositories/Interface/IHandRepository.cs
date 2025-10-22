@@ -29,12 +29,7 @@ namespace Project.Api.Repositories
         Task<Hand> UpdateHandAsync(Guid handId, Hand hand);
 
         // Partially update an existing hand
-        Task<Hand> PatchHandAsync(
-            Guid handId,
-            int? Order = null,
-            string? CardsJson = null,
-            int? Bet = null
-        );
+        Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null);
 
         // Delete a hand
         Task<Hand> DeleteHandAsync(Guid handId);

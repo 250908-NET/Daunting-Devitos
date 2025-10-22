@@ -41,7 +41,6 @@ namespace Project.Test.Repository
                     Id = handId,
                     Order = 1,
                     RoomPlayerId = roomPlayerId,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -56,7 +55,6 @@ namespace Project.Test.Repository
             Assert.NotNull(res);
             Assert.Equal(1, res!.Order);
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
-            Assert.Equal("[]", res.CardsJson);
             Assert.Equal(0, res.Bet);
         }
 
@@ -73,7 +71,6 @@ namespace Project.Test.Repository
                     Id = Guid.NewGuid(),
                     Order = 1,
                     RoomPlayerId = Guid.NewGuid(),
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -148,7 +145,6 @@ namespace Project.Test.Repository
                     Id = handId1,
                     Order = 1,
                     RoomPlayerId = roomPlayerId1,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -158,7 +154,6 @@ namespace Project.Test.Repository
                     Id = handId2,
                     Order = 2,
                     RoomPlayerId = roomPlayerId2,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -168,7 +163,6 @@ namespace Project.Test.Repository
                     Id = handId3,
                     Order = 3,
                     RoomPlayerId = roomPlayerId3,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -178,7 +172,6 @@ namespace Project.Test.Repository
                     Id = handId4,
                     Order = 4,
                     RoomPlayerId = roomPlayerId4,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             ); // Different RoomPlayer
@@ -227,7 +220,6 @@ namespace Project.Test.Repository
                 Id = handId,
                 Order = 1,
                 RoomPlayerId = roomPlayerId,
-                CardsJson = "[]",
                 Bet = 0,
             };
 
@@ -242,7 +234,6 @@ namespace Project.Test.Repository
             Assert.Equal(handId, res.Id);
             Assert.Equal(1, res.Order);
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
-            Assert.Equal("[]", res.CardsJson);
             Assert.Equal(0, res.Bet);
         }
 
@@ -280,7 +271,6 @@ namespace Project.Test.Repository
                     Id = handId,
                     Order = 1,
                     RoomPlayerId = roomPlayerId,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -293,7 +283,6 @@ namespace Project.Test.Repository
                     Id = handId,
                     Order = 2,
                     RoomPlayerId = roomPlayerId,
-                    CardsJson = "[\"AS\"]",
                     Bet = 100,
                 }
             );
@@ -304,7 +293,6 @@ namespace Project.Test.Repository
             Assert.NotNull(res);
             Assert.Equal(2, res.Order);
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
-            Assert.Equal("[\"AS\"]", res.CardsJson);
             Assert.Equal(100, res.Bet);
         }
 
@@ -327,7 +315,6 @@ namespace Project.Test.Repository
                         Id = Guid.NewGuid(),
                         Order = 1,
                         RoomPlayerId = Guid.NewGuid(),
-                        CardsJson = "[]",
                         Bet = 0,
                     }
                 );
@@ -368,7 +355,6 @@ namespace Project.Test.Repository
                     Id = handId,
                     Order = 1,
                     RoomPlayerId = roomPlayerId,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );
@@ -380,7 +366,6 @@ namespace Project.Test.Repository
             Assert.NotNull(res);
             Assert.Equal(3, res.Order);
             Assert.Equal(roomPlayerId, res.RoomPlayerId);
-            Assert.Equal("[]", res.CardsJson);
             Assert.Equal(200, res.Bet);
         }
 
@@ -418,7 +403,6 @@ namespace Project.Test.Repository
                     Id = handId,
                     Order = 1,
                     RoomPlayerId = roomPlayerId,
-                    CardsJson = "[]",
                     Bet = 0,
                 }
             );

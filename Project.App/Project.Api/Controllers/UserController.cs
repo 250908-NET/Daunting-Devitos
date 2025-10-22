@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Project.Api.DTOs;
@@ -78,6 +79,31 @@ namespace Project.Api.Controllers
 
             await _userRepository.DeleteAsync(id);
             return NoContent();
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> Me([FromServices] IUserService users)
+        {
+            // Identity comes from the auth cookie
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email);
+            if (email is null)
+                return Unauthorized();
+
+            var u = await users.GetByEmailAsync(email.Value);
+            if (u is null)
+                return NotFound();
+            //temporary user dto since we dont have one made
+            return Ok(
+                new
+                {
+                    id = u.Id,
+                    name = u.Name,
+                    email = u.Email,
+                    balance = u.Balance,
+                    avatarUrl = u.AvatarUrl,
+                }
+            );
         }
     }
 }

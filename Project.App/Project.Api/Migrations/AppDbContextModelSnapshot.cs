@@ -31,10 +31,6 @@ namespace Project.Api.Migrations
                     b.Property<int>("Bet")
                         .HasColumnType("int");
 
-                    b.Property<string>("CardsJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("Order")
                         .HasColumnType("int");
 
