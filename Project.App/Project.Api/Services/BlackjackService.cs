@@ -160,12 +160,11 @@ public class BlackjackService(
                 {
                     try
                     {
-                        // The bet amount should be deducted, so we pass a negative value.
                         await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
                     }
                     catch (NotFoundException)
                     {
-                        // This indicates an inconsistent state. A bet was recorded for a player who no longer exists.
+                        // a bet was recorded for a player who no longer exists?
                         throw new InternalServerException(
                             $"Could not find player {better} to process their bet."
                         );
@@ -173,22 +172,93 @@ public class BlackjackService(
                 }
 
                 // move to next stage
-                state.CurrentStage = new BlackjackPlayerActionStage(0);
+
+                state.CurrentStage = new BlackjackPlayerActionStage(
+                    DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                    0
+                );
                 await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+
+                // TODO: dealing stage
+
+                // TODO: move to player action stage
 
                 break;
             case HitAction hitAction:
+                // draw a card and add to player's hand
+
+                // go back to player again
                 throw new NotImplementedException();
             case StandAction standAction:
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             case DoubleAction doubleAction:
+                // can only be done on the player's first turn!
+
+                // check if player has enough chips to double their bet
+
+                // double player's bet (deduct from balance and update gamestate)
+
+                // draw one card
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             case SplitAction splitAction:
+                // can only be done on the player's first turn!
+
+                // check if player has enough chips to do the new bet
+
+                // deal new hand (2 cards)
+
+                // next turn should be player's first hand
                 throw new NotImplementedException();
             case SurrenderAction surrenderAction:
+                // not allowed after splitting!
+                //   maybe check if player only has one hand?
+
+                // refund half of player's bet (deduct from balance and update gamestate)
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             default:
                 throw new NotImplementedException();
         }
+    }
+
+    /// <summary>
+    /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
+    /// </summary>
+    private async Task NextHandOrFinishRoundAsync(BlackjackState state)
+    {
+        // move to next player
+
+        // if player is last player, move to next stage
+        await FinishRoundAsync(state);
+
+        throw new NotImplementedException();
+    }
+
+    // After the players have finished playing, the dealer's hand is resolved by drawing cards until
+    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11
+    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit.
+    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win.
+    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
+    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
+    // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
+    private async Task FinishRoundAsync(BlackjackState state)
+    {
+        // reveal dealer cards
+
+        // do dealer turn, if needed (until dealer has 17 or higher)
+
+        // calculate winnings
+
+        // distribute winnings
+
+        // initialize betting stage
+        throw new NotImplementedException();
     }
 }

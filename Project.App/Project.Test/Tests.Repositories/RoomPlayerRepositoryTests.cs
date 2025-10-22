@@ -721,13 +721,13 @@ public class RoomPlayerRepositoryTests
         await context.RoomPlayers.AddAsync(roomPlayer);
         await context.SaveChangesAsync();
 
-        // Act
-        await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, 5000);
+    // Act - add 4000 to initial 1000 to reach expected 5000
+    await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, 4000);
 
-        // Assert
-        var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
-        updatedPlayer.Should().NotBeNull();
-        updatedPlayer!.Balance.Should().Be(5000);
+    // Assert
+    var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
+    updatedPlayer.Should().NotBeNull();
+    updatedPlayer!.Balance.Should().Be(5000);
     }
 
     [Fact]
@@ -764,13 +764,13 @@ public class RoomPlayerRepositoryTests
         await context.RoomPlayers.AddAsync(roomPlayer);
         await context.SaveChangesAsync();
 
-        // Act
-        await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, -500);
+    // Act - subtract 1500 from initial 1000 to reach expected -500
+    await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, -1500);
 
-        // Assert
-        var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
-        updatedPlayer.Should().NotBeNull();
-        updatedPlayer!.Balance.Should().Be(-500);
+    // Assert
+    var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
+    updatedPlayer.Should().NotBeNull();
+    updatedPlayer!.Balance.Should().Be(-500);
     }
 
     [Fact]
