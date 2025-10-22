@@ -73,10 +73,11 @@ public class Program
         {
             options.AddDefaultPolicy(policy =>
             {
-                policy.WithOrigins("http://localhost:3000") // Your Next.js frontend
-                      .AllowAnyHeader()
-                      .AllowAnyMethod()
-                      .AllowCredentials(); // Required for cookies
+                policy
+                    .WithOrigins("http://localhost:3000") // Your Next.js frontend
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials(); // Required for cookies
             });
         });
 

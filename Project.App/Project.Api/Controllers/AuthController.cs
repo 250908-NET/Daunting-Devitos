@@ -17,7 +17,7 @@ public class AuthController : ControllerBase
     public IActionResult Login([FromQuery] string? returnUrl = null)
     {
         Console.WriteLine($"[AUTH] Login called with returnUrl: {returnUrl}");
-        
+
         // Allow frontend URLs (localhost:3000 or your production frontend)
         var allowedOrigins = new[] { "http://localhost:3000", "https://localhost:3000" };
         var safe = "/swagger"; // default fallback
@@ -25,7 +25,10 @@ public class AuthController : ControllerBase
         if (!string.IsNullOrEmpty(returnUrl))
         {
             // Check if returnUrl is a local path or starts with an allowed origin
-            if (Url.IsLocalUrl(returnUrl) || allowedOrigins.Any(origin => returnUrl.StartsWith(origin)))
+            if (
+                Url.IsLocalUrl(returnUrl)
+                || allowedOrigins.Any(origin => returnUrl.StartsWith(origin))
+            )
             {
                 safe = returnUrl;
                 Console.WriteLine($"[AUTH] returnUrl accepted: {safe}");

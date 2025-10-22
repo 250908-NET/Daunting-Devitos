@@ -27,7 +27,8 @@ public class DeckApiService : IDeckApiService
     */
     public async Task<string> CreateDeck(int numOfDecks = 6, bool enableJokers = false)
     {
-        string url = $"https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count={numOfDecks}&enable_Jokers={enableJokers}";
+        string url =
+            $"https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count={numOfDecks}&enable_Jokers={enableJokers}";
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
             throw new Exception("Failed to create deck");
@@ -138,13 +139,12 @@ public class DeckApiService : IDeckApiService
         }
         return true;
     }
-    
 
     /*
     Calls Api to list cards in specified pile from specified deck.
-    Returns List<CardDTO>, 
+    Returns List<CardDTO>,
     */
-    private async Task<List<CardDTO>> listHand (string deckId, string handName)
+    private async Task<List<CardDTO>> listHand(string deckId, string handName)
     {
         string listPileUrl = $"https://deckofcardsapi.com/api/deck/{deckId}/pile/{handName}/list/";
         var listResponse = await _httpClient.GetAsync(listPileUrl);

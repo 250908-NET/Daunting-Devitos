@@ -13,6 +13,7 @@ public interface IDeckApiService
         enableJokers = false
     */
     Task<string> CreateDeck(int numOfDecks, bool enableJokers);
+
     /*
     Create an empty hand (pile) identified by handName within the specified deck.
     Returns true if successful.
@@ -24,7 +25,7 @@ public interface IDeckApiService
     Returns true if successful.
     */
     Task<bool> CreateEmptyHand(string deckId, string handName);
-    
+
     /*
     Player draws specified number of cards, count, from specified deck.
     Draws one card by default.
