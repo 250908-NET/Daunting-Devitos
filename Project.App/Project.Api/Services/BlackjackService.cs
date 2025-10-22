@@ -208,7 +208,8 @@ public class BlackjackService(
 
                 // Draw one card and add it to player's hand
                 var drawnCards = await _deckApiService.DrawCards(
-                    room.DeckId?.ToString() ?? string.Empty,
+                    room.DeckId?.ToString()
+                        ?? throw new InternalServerException($"Deck for room {roomId} not found."),
                     hand.Id.ToString(),
                     1
                 );
