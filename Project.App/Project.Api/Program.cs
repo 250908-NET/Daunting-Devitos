@@ -17,29 +17,14 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        const string CorsPolicy = "FrontendCors";
-
-        builder.Services.AddCors(options =>
-        {
-            options.AddPolicy(
-                CorsPolicy,
-                policy =>
-                {
-                    policy
-                        .WithOrigins("http://localhost:3000", "https://localhost:3000") //  Next.js dev origin add other frontend origins below this when we move to server
-                        .AllowAnyHeader()
-                        .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .AllowCredentials(); // required cookie for auth
-                }
-            );
-        });
-
+        // use adminsetting.json as configuration
         builder.Configuration.AddJsonFile(
             "adminsetting.json",
             optional: true,
             reloadOnChange: true
         );
 
+        // configure Serilog
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.Console()
@@ -47,44 +32,130 @@ public class Program
 
         builder.Host.UseSerilog();
 
+        // use extension methods to configure services
+        builder.Services.AddDatabase(builder.Configuration);
+        builder.Services.AddApplicationServices();
+        builder.Services.AddCorsPolicy();
+        builder.Services.AddAuth(builder.Configuration, builder.Environment);
+
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        builder.Services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        var app = builder.Build();
+
+        app.UseMiddleware<GlobalExceptionHandler>();
+
+        // map default endpoint (shows connection string)
+        app.MapGet(
+            "/string",
+            () =>
+            {
+                var CS = builder.Configuration.GetConnectionString("DefaultConnection");
+                return Results.Ok(CS);
+            }
         );
 
-        builder.Services.AddScoped<IHandService, HandService>();
-
-        builder.Services.AddScoped<IHandRepository, HandRepository>();
-
-        builder.Services.AddSingleton<IRoomSSEService, RoomSSEService>();
-
-        //Auto Mapper
-        builder.Services.AddAutoMapper(typeof(Program));
-
-        // CORS configuration
-        builder.Services.AddCors(options =>
+        // Configure the HTTP request pipeline.
+        if (app.Environment.IsDevelopment())
         {
-            options.AddDefaultPolicy(policy =>
-            {
-                policy
-                    .WithOrigins("http://localhost:3000") // Your Next.js frontend
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials(); // Required for cookies
-            });
+            app.MapOpenApi();
+            app.UseSwagger();
+            app.UseSwaggerUI();
+        }
+
+        app.UseCors(ProgramExtensions.CorsPolicy); // Enable CORS with our policy
+        app.UseHttpsRedirection();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapControllers();
+
+        app.Run();
+    }
+}
+
+public static class ProgramExtensions
+{
+    public const string CorsPolicy = "FrontendCors";
+
+    /// <summary>
+    /// Applies the configuration for the CORS policy.
+    /// </summary>
+    public static IServiceCollection AddCorsPolicy(this IServiceCollection services)
+    {
+        services.AddCors(options =>
+        {
+            options.AddPolicy(
+                CorsPolicy,
+                policy =>
+                {
+                    policy
+                        .WithOrigins("http://localhost:3000", "https://localhost:3000") // Next.js frontend
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials(); // Required for cookies
+                }
+            );
         });
+        return services;
+    }
 
-        builder.Services.AddAuthorization();
+    /// <summary>
+    /// Registers the database.
+    /// </summary>
+    public static IServiceCollection AddDatabase(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
+    {
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
+        );
+        return services;
+    }
 
+    /// <summary>
+    /// Registers the services and repositories used by the application.
+    /// </summary>
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        // scoped services
+        services.AddScoped<IBlackjackService, BlackjackService>();
+        services.AddScoped<IHandService, HandService>();
+        services.AddScoped<IRoomService, RoomService>();
+        services.AddScoped<IUserService, UserService>();
+
+        // singleton services
+        services.AddHttpClient<IDeckApiService, DeckApiService>();
+        services.AddSingleton<IRoomSSEService, RoomSSEService>();
+
+        // scoped repositories
+        services.AddScoped<IHandRepository, HandRepository>();
+        services.AddScoped<IRoomPlayerRepository, RoomPlayerRepository>();
+        services.AddScoped<IRoomRepository, RoomRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+
+        // automapper!!!
+        services.AddAutoMapper(typeof(Program));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures and registers the authentication services.
+    /// </summary>
+    public static IServiceCollection AddAuth(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IWebHostEnvironment environment
+    )
+    {
         // sanity check for auth errors logging
-        if (!builder.Environment.IsEnvironment("Testing"))
+        if (!environment.IsEnvironment("Testing"))
         {
-            var gid = builder.Configuration["Google:ClientId"];
-            var gsec = builder.Configuration["Google:ClientSecret"];
+            var gid = configuration["Google:ClientId"];
+            var gsec = configuration["Google:ClientSecret"];
             if (string.IsNullOrWhiteSpace(gid) || string.IsNullOrWhiteSpace(gsec))
             {
                 throw new InvalidOperationException(
@@ -98,11 +169,13 @@ public class Program
         }
 
         // Google OAuth
-        builder
-            .Services.AddAuthentication(options =>
+        services
+            .AddAuthentication(options =>
             {
-                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme; // where the app reads identity from on each request
-                options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme; // how the app prompts an unauthenticated user to log in
+                // where the app reads identity from on each request
+                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                // how the app prompts an unauthenticated user to log in
+                options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
             })
             .AddCookie(cookie =>
             {
@@ -128,8 +201,8 @@ public class Program
             })
             .AddGoogle(options =>
             {
-                options.ClientId = builder.Configuration["Google:ClientId"]!; //  from secrets / config
-                options.ClientSecret = builder.Configuration["Google:ClientSecret"]!; //  from secrets / config
+                options.ClientId = configuration["Google:ClientId"]!; //  from secrets / config
+                options.ClientSecret = configuration["Google:ClientSecret"]!; //  from secrets / config
                 options.CallbackPath = "/auth/google/callback"; //  google redirects here after login if we change this we need to change it on google cloud as well!
                 //options.Events = new OAuthEvents
                 { //TEMPORARILY COMMENTED OUR BELOW BECAUSE IT WAS MESSING WITH GOOGLE AUTH LOGIN FOR SOME REASON GOTTA CHECK THIS LATER
@@ -161,33 +234,8 @@ public class Program
                 ;
             });
 
-        var app = builder.Build();
+        services.AddAuthorization();
 
-        app.UseMiddleware<GlobalExceptionHandler>();
-
-        app.MapGet(
-            "/string",
-            () =>
-            {
-                var CS = builder.Configuration.GetConnectionString("DefaultConnection");
-                return Results.Ok(CS);
-            }
-        );
-
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapOpenApi();
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-
-        app.UseCors(CorsPolicy); // Enable CORS with our policy
-        app.UseHttpsRedirection();
-        app.UseAuthentication();
-        app.UseAuthorization();
-        app.MapControllers();
-
-        app.Run();
+        return services;
     }
 }
