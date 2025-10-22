@@ -12,9 +12,12 @@
     DeleteHandAsync(Guid handId) - /{handId} # delete a hand by id
     Parent: IHandService.cs
 */
+using Microsoft.Extensions.ObjectPool;
 using Project.Api.Models;
 using Project.Api.Repositories;
+using Project.Api.Services.Interface;
 using Project.Api.Services;
+using Project.Api.DTOs;
 
 namespace Project.Api.Services;
 
@@ -113,18 +116,13 @@ public class HandService : IHandService
     }
 
     // Partially update an existing hand
-    public async Task<Hand> PatchHandAsync(
-        Guid handId,
-        int? Order = null,
-        string? CardsJson = null,
-        int? Bet = null
-    )
+    public async Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null)
     {
         try
         {
             // send request to repository
             _logger.LogInformation($"Patching hand {handId}");
-            return await _Repo.PatchHandAsync(handId, Order, CardsJson, Bet);
+            return await _Repo.PatchHandAsync(handId, Order, Bet);
         }
         catch (Exception e)
         {

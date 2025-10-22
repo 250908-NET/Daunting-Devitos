@@ -144,4 +144,22 @@ public class RoomPlayerRepository(AppDbContext context) : IRoomPlayerRepository
         roomPlayer.Balance += change;
         await _context.SaveChangesAsync();
     }
+
+    /// <summary>
+    /// Batch updates all players in a room with a single database operation.
+    /// </summary>
+    public async Task UpdatePlayersInRoomAsync(Guid roomId, Action<RoomPlayer> updateAction)
+    {
+        var players = await _context
+            .RoomPlayers.Where(rp => rp.RoomId == roomId)
+            .ToListAsync();
+
+        foreach (var player in players)
+        {
+            updateAction(player);
+            _context.Entry(player).State = EntityState.Modified;
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }

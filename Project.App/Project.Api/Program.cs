@@ -13,6 +13,7 @@ using Project.Api.Middleware;
 using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
+using Project.Api.Services.Interface;
 using Serilog;
 
 namespace Project.Api;
@@ -61,6 +62,10 @@ public class Program
         builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
         );
+        builder.Services.AddHttpClient();
+        builder.Services.AddScoped<IDeckApiService, DeckApiService>();
+
+        builder.Services.AddHttpClient<IDeckApiService, DeckApiService>();
 
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IUserService, UserService>();
@@ -68,6 +73,9 @@ public class Program
         builder.Services.AddScoped<IHandService, HandService>();
 
         builder.Services.AddScoped<IHandRepository, HandRepository>();
+
+        
+
 
         //Auto Mapper
         builder.Services.AddAutoMapper(typeof(Program));
