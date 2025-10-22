@@ -218,11 +218,39 @@ public class BlackjackService(
                 // not allowed after splitting!
                 //   maybe check if player only has one hand?
 
-                // refund half of player's bet (deduct from balance and update gamestate)
+                // Check if player has split by counting their hands
+                // If they have more than one hand, surrender is not allowed
+                if (player.Hands.Count > 1)
+                {
+                    throw new BadRequestException(
+                        "Surrender is not allowed after splitting."
+                    );
+                }
+
+                // Check if player has at least one hand
+                if (player.Hands.Count == 0)
+                {
+                    throw new BadRequestException(
+                        $"Player {playerId} has no active hands."
+                    );
+                }
+
+                // Get the player's bet from their hand
+                Hand playerHand = player.Hands.First();
+                long originalBet = playerHand.Bet;
+
+                // Calculate refund amount (half of original bet)
+                long refundAmount = originalBet / 2;
+
+                // Refund half of player's bet
+                await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, refundAmount);
+
+                // Update game state to reflect surrender
+                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
                 // next player or next stage
                 await NextHandOrFinishRoundAsync(state);
-                throw new NotImplementedException();
+                break;
             default:
                 throw new NotImplementedException();
         }
