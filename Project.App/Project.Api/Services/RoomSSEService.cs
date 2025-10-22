@@ -53,7 +53,7 @@ public class RoomSSEService : IRoomSSEService
 
     public async Task BroadcastEventAsync(Guid roomId, string eventName, object data)
     {
-        // check if room exists
+        // check if room exists in connections
         if (
             !_connections.TryGetValue(
                 roomId,
