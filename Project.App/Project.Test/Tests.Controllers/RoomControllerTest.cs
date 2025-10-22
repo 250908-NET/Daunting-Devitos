@@ -18,13 +18,19 @@ namespace Project.Test.Tests.Controllers
     {
         private readonly Mock<IRoomService> _mockRoomService;
         private readonly Mock<ILogger<RoomController>> _mockLogger;
+        private readonly Mock<IRoomSSEService> _mockRoomSseService;
         private readonly RoomController _controller;
 
         public RoomControllerTest()
         {
             _mockRoomService = new Mock<IRoomService>();
+            _mockRoomSseService = new Mock<IRoomSSEService>();
             _mockLogger = new Mock<ILogger<RoomController>>();
-            _controller = new RoomController(_mockRoomService.Object, _mockLogger.Object);
+            _controller = new RoomController(
+                _mockRoomService.Object,
+                _mockRoomSseService.Object,
+                _mockLogger.Object
+            );
         }
 
         #region GET Tests
@@ -35,8 +41,20 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var rooms = new List<RoomDTO>
             {
-                new RoomDTO { Id = Guid.NewGuid(), HostId = Guid.NewGuid(), GameMode = "Blackjack", IsActive = true },
-                new RoomDTO { Id = Guid.NewGuid(), HostId = Guid.NewGuid(), GameMode = "Poker", IsActive = true }
+                new RoomDTO
+                {
+                    Id = Guid.NewGuid(),
+                    HostId = Guid.NewGuid(),
+                    GameMode = "Blackjack",
+                    IsActive = true,
+                },
+                new RoomDTO
+                {
+                    Id = Guid.NewGuid(),
+                    HostId = Guid.NewGuid(),
+                    GameMode = "Poker",
+                    IsActive = true,
+                },
             };
             _mockRoomService.Setup(service => service.GetAllRoomsAsync()).ReturnsAsync(rooms);
 
@@ -55,9 +73,16 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var activeRooms = new List<RoomDTO>
             {
-                new RoomDTO { Id = Guid.NewGuid(), HostId = Guid.NewGuid(), IsActive = true }
+                new RoomDTO
+                {
+                    Id = Guid.NewGuid(),
+                    HostId = Guid.NewGuid(),
+                    IsActive = true,
+                },
             };
-            _mockRoomService.Setup(service => service.GetActiveRoomsAsync()).ReturnsAsync(activeRooms);
+            _mockRoomService
+                .Setup(service => service.GetActiveRoomsAsync())
+                .ReturnsAsync(activeRooms);
 
             // Act
             var result = await _controller.GetActiveRooms();
@@ -74,9 +99,16 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var publicRooms = new List<RoomDTO>
             {
-                new RoomDTO { Id = Guid.NewGuid(), HostId = Guid.NewGuid(), IsPublic = true }
+                new RoomDTO
+                {
+                    Id = Guid.NewGuid(),
+                    HostId = Guid.NewGuid(),
+                    IsPublic = true,
+                },
             };
-            _mockRoomService.Setup(service => service.GetPublicRoomsAsync()).ReturnsAsync(publicRooms);
+            _mockRoomService
+                .Setup(service => service.GetPublicRoomsAsync())
+                .ReturnsAsync(publicRooms);
 
             // Act
             var result = await _controller.GetPublicRooms();
@@ -92,7 +124,12 @@ namespace Project.Test.Tests.Controllers
         {
             // Arrange
             var roomId = Guid.NewGuid();
-            var room = new RoomDTO { Id = roomId, HostId = Guid.NewGuid(), GameMode = "Blackjack" };
+            var room = new RoomDTO
+            {
+                Id = roomId,
+                HostId = Guid.NewGuid(),
+                GameMode = "Blackjack",
+            };
             _mockRoomService.Setup(service => service.GetRoomByIdAsync(roomId)).ReturnsAsync(room);
 
             // Act
@@ -109,7 +146,9 @@ namespace Project.Test.Tests.Controllers
         {
             // Arrange
             var roomId = Guid.NewGuid();
-            _mockRoomService.Setup(service => service.GetRoomByIdAsync(roomId)).ReturnsAsync((RoomDTO?)null);
+            _mockRoomService
+                .Setup(service => service.GetRoomByIdAsync(roomId))
+                .ReturnsAsync((RoomDTO?)null);
 
             // Act & Assert
             await Assert.ThrowsAsync<NotFoundException>(() => _controller.GetRoomById(roomId));
@@ -120,8 +159,15 @@ namespace Project.Test.Tests.Controllers
         {
             // Arrange
             var hostId = Guid.NewGuid();
-            var room = new RoomDTO { Id = Guid.NewGuid(), HostId = hostId, GameMode = "Blackjack" };
-            _mockRoomService.Setup(service => service.GetRoomByHostIdAsync(hostId)).ReturnsAsync(room);
+            var room = new RoomDTO
+            {
+                Id = Guid.NewGuid(),
+                HostId = hostId,
+                GameMode = "Blackjack",
+            };
+            _mockRoomService
+                .Setup(service => service.GetRoomByHostIdAsync(hostId))
+                .ReturnsAsync(room);
 
             // Act
             var result = await _controller.GetRoomByHostId(hostId);
@@ -137,7 +183,9 @@ namespace Project.Test.Tests.Controllers
         {
             // Arrange
             var hostId = Guid.NewGuid();
-            _mockRoomService.Setup(service => service.GetRoomByHostIdAsync(hostId)).ReturnsAsync((RoomDTO?)null);
+            _mockRoomService
+                .Setup(service => service.GetRoomByHostIdAsync(hostId))
+                .ReturnsAsync((RoomDTO?)null);
 
             // Act & Assert
             await Assert.ThrowsAsync<NotFoundException>(() => _controller.GetRoomByHostId(hostId));
@@ -179,7 +227,9 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameState = "{\"players\": [], \"currentRound\": 1}";
-            _mockRoomService.Setup(service => service.GetGameStateAsync(roomId)).ReturnsAsync(gameState);
+            _mockRoomService
+                .Setup(service => service.GetGameStateAsync(roomId))
+                .ReturnsAsync(gameState);
 
             // Act
             var result = await _controller.GetGameState(roomId);
@@ -195,7 +245,9 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameConfig = "{\"maxBet\": 1000, \"minBet\": 10}";
-            _mockRoomService.Setup(service => service.GetGameConfigAsync(roomId)).ReturnsAsync(gameConfig);
+            _mockRoomService
+                .Setup(service => service.GetGameConfigAsync(roomId))
+                .ReturnsAsync(gameConfig);
 
             // Act
             var result = await _controller.GetGameConfig(roomId);
@@ -220,7 +272,7 @@ namespace Project.Test.Tests.Controllers
                 GameMode = "Blackjack",
                 MaxPlayers = 6,
                 MinPlayers = 2,
-                DeckId = "deck123"
+                DeckId = "deck123",
             };
             var createdRoom = new RoomDTO
             {
@@ -230,9 +282,11 @@ namespace Project.Test.Tests.Controllers
                 GameMode = createDto.GameMode,
                 MaxPlayers = createDto.MaxPlayers,
                 MinPlayers = createDto.MinPlayers,
-                DeckId = createDto.DeckId
+                DeckId = createDto.DeckId,
             };
-            _mockRoomService.Setup(service => service.CreateRoomAsync(createDto)).ReturnsAsync(createdRoom);
+            _mockRoomService
+                .Setup(service => service.CreateRoomAsync(createDto))
+                .ReturnsAsync(createdRoom);
 
             // Act
             var result = await _controller.CreateRoom(createDto);
@@ -264,8 +318,15 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameConfig = "{\"maxBet\": 1000}";
-            var room = new RoomDTO { Id = roomId, HostId = Guid.NewGuid(), GameMode = "Blackjack" };
-            _mockRoomService.Setup(service => service.StartGameAsync(roomId, gameConfig)).ReturnsAsync(room);
+            var room = new RoomDTO
+            {
+                Id = roomId,
+                HostId = Guid.NewGuid(),
+                GameMode = "Blackjack",
+            };
+            _mockRoomService
+                .Setup(service => service.StartGameAsync(roomId, gameConfig))
+                .ReturnsAsync(room);
 
             // Act
             var result = await _controller.StartGame(roomId, gameConfig);
@@ -281,8 +342,15 @@ namespace Project.Test.Tests.Controllers
         {
             // Arrange
             var roomId = Guid.NewGuid();
-            var room = new RoomDTO { Id = roomId, HostId = Guid.NewGuid(), GameMode = "Blackjack" };
-            _mockRoomService.Setup(service => service.StartGameAsync(roomId, null)).ReturnsAsync(room);
+            var room = new RoomDTO
+            {
+                Id = roomId,
+                HostId = Guid.NewGuid(),
+                GameMode = "Blackjack",
+            };
+            _mockRoomService
+                .Setup(service => service.StartGameAsync(roomId, null))
+                .ReturnsAsync(room);
 
             // Act
             var result = await _controller.StartGame(roomId, null);
@@ -302,10 +370,12 @@ namespace Project.Test.Tests.Controllers
             var request = new PlayerActionRequest
             {
                 Action = "Hit",
-                Data = JsonDocument.Parse("{}").RootElement
+                Data = JsonDocument.Parse("{}").RootElement,
             };
-            _mockRoomService.Setup(service => service.PerformPlayerActionAsync(
-                roomId, playerId, request.Action, request.Data))
+            _mockRoomService
+                .Setup(service =>
+                    service.PerformPlayerActionAsync(roomId, playerId, request.Action, request.Data)
+                )
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -313,8 +383,16 @@ namespace Project.Test.Tests.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            _mockRoomService.Verify(service => service.PerformPlayerActionAsync(
-                roomId, playerId, request.Action, request.Data), Times.Once);
+            _mockRoomService.Verify(
+                service =>
+                    service.PerformPlayerActionAsync(
+                        roomId,
+                        playerId,
+                        request.Action,
+                        request.Data
+                    ),
+                Times.Once
+            );
         }
 
         [Fact]
@@ -341,7 +419,9 @@ namespace Project.Test.Tests.Controllers
             var userId = Guid.NewGuid();
             var request = new JoinRoomRequest { UserId = userId };
             var room = new RoomDTO { Id = roomId, HostId = Guid.NewGuid() };
-            _mockRoomService.Setup(service => service.JoinRoomAsync(roomId, userId)).ReturnsAsync(room);
+            _mockRoomService
+                .Setup(service => service.JoinRoomAsync(roomId, userId))
+                .ReturnsAsync(room);
 
             // Act
             var result = await _controller.JoinRoom(roomId, request);
@@ -375,7 +455,9 @@ namespace Project.Test.Tests.Controllers
             var userId = Guid.NewGuid();
             var request = new LeaveRoomRequest { UserId = userId };
             var room = new RoomDTO { Id = roomId, HostId = Guid.NewGuid() };
-            _mockRoomService.Setup(service => service.LeaveRoomAsync(roomId, userId)).ReturnsAsync(room);
+            _mockRoomService
+                .Setup(service => service.LeaveRoomAsync(roomId, userId))
+                .ReturnsAsync(room);
 
             // Act
             var result = await _controller.LeaveRoom(roomId, request);
@@ -417,7 +499,7 @@ namespace Project.Test.Tests.Controllers
                 IsPublic = true,
                 GameMode = "Blackjack",
                 MaxPlayers = 6,
-                MinPlayers = 2
+                MinPlayers = 2,
             };
             var updatedRoom = new RoomDTO
             {
@@ -426,9 +508,11 @@ namespace Project.Test.Tests.Controllers
                 IsPublic = updateDto.IsPublic,
                 GameMode = updateDto.GameMode,
                 MaxPlayers = updateDto.MaxPlayers,
-                MinPlayers = updateDto.MinPlayers
+                MinPlayers = updateDto.MinPlayers,
             };
-            _mockRoomService.Setup(service => service.UpdateRoomAsync(updateDto)).ReturnsAsync(updatedRoom);
+            _mockRoomService
+                .Setup(service => service.UpdateRoomAsync(updateDto))
+                .ReturnsAsync(updatedRoom);
 
             // Act
             var result = await _controller.UpdateRoom(roomId, updateDto);
@@ -447,11 +531,13 @@ namespace Project.Test.Tests.Controllers
             var updateDto = new UpdateRoomDTO
             {
                 Id = Guid.NewGuid(), // Different ID
-                HostId = Guid.NewGuid()
+                HostId = Guid.NewGuid(),
             };
 
             // Act & Assert
-            await Assert.ThrowsAsync<BadRequestException>(() => _controller.UpdateRoom(roomId, updateDto));
+            await Assert.ThrowsAsync<BadRequestException>(() =>
+                _controller.UpdateRoom(roomId, updateDto)
+            );
         }
 
         [Fact]
@@ -478,12 +564,16 @@ namespace Project.Test.Tests.Controllers
             {
                 Id = roomId,
                 HostId = Guid.NewGuid(),
-                GameMode = "Blackjack"
+                GameMode = "Blackjack",
             };
-            _mockRoomService.Setup(service => service.UpdateRoomAsync(updateDto)).ReturnsAsync((RoomDTO?)null);
+            _mockRoomService
+                .Setup(service => service.UpdateRoomAsync(updateDto))
+                .ReturnsAsync((RoomDTO?)null);
 
             // Act & Assert
-            await Assert.ThrowsAsync<NotFoundException>(() => _controller.UpdateRoom(roomId, updateDto));
+            await Assert.ThrowsAsync<NotFoundException>(() =>
+                _controller.UpdateRoom(roomId, updateDto)
+            );
         }
 
         [Fact]
@@ -492,7 +582,9 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameState = "{\"players\": [], \"currentRound\": 2}";
-            _mockRoomService.Setup(service => service.UpdateGameStateAsync(roomId, gameState)).ReturnsAsync(true);
+            _mockRoomService
+                .Setup(service => service.UpdateGameStateAsync(roomId, gameState))
+                .ReturnsAsync(true);
 
             // Act
             var result = await _controller.UpdateGameState(roomId, gameState);
@@ -507,10 +599,14 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameState = "{\"players\": []}";
-            _mockRoomService.Setup(service => service.UpdateGameStateAsync(roomId, gameState)).ReturnsAsync(false);
+            _mockRoomService
+                .Setup(service => service.UpdateGameStateAsync(roomId, gameState))
+                .ReturnsAsync(false);
 
             // Act & Assert
-            await Assert.ThrowsAsync<NotFoundException>(() => _controller.UpdateGameState(roomId, gameState));
+            await Assert.ThrowsAsync<NotFoundException>(() =>
+                _controller.UpdateGameState(roomId, gameState)
+            );
         }
 
         [Fact]
@@ -519,7 +615,9 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameConfig = "{\"maxBet\": 2000}";
-            _mockRoomService.Setup(service => service.UpdateGameConfigAsync(roomId, gameConfig)).ReturnsAsync(true);
+            _mockRoomService
+                .Setup(service => service.UpdateGameConfigAsync(roomId, gameConfig))
+                .ReturnsAsync(true);
 
             // Act
             var result = await _controller.UpdateGameConfig(roomId, gameConfig);
@@ -534,10 +632,14 @@ namespace Project.Test.Tests.Controllers
             // Arrange
             var roomId = Guid.NewGuid();
             var gameConfig = "{\"maxBet\": 2000}";
-            _mockRoomService.Setup(service => service.UpdateGameConfigAsync(roomId, gameConfig)).ReturnsAsync(false);
+            _mockRoomService
+                .Setup(service => service.UpdateGameConfigAsync(roomId, gameConfig))
+                .ReturnsAsync(false);
 
             // Act & Assert
-            await Assert.ThrowsAsync<NotFoundException>(() => _controller.UpdateGameConfig(roomId, gameConfig));
+            await Assert.ThrowsAsync<NotFoundException>(() =>
+                _controller.UpdateGameConfig(roomId, gameConfig)
+            );
         }
 
         #endregion

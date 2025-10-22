@@ -9,16 +9,14 @@ namespace Project.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class RoomController : ControllerBase
+public class RoomController(
+    IRoomService roomService,
+    IRoomSSEService roomSSEService,
+    ILogger<RoomController> logger
+) : ControllerBase
 {
-    private readonly IRoomService _roomService;
-    private readonly ILogger<RoomController> _logger;
-
-    public RoomController(IRoomService roomService, ILogger<RoomController> logger)
-    {
-        _roomService = roomService;
-        _logger = logger;
-    }
+    private readonly IRoomService _roomService = roomService;
+    private readonly ILogger<RoomController> _logger = logger;
 
     // GET: api/room
     [HttpGet]
@@ -153,7 +151,10 @@ public class RoomController : ControllerBase
 
     // POST: api/room/{id}/start
     [HttpPost("{id}/start")]
-    public async Task<ActionResult<RoomDTO>> StartGame(Guid id, [FromBody] string? gameConfigJson = null)
+    public async Task<ActionResult<RoomDTO>> StartGame(
+        Guid id,
+        [FromBody] string? gameConfigJson = null
+    )
     {
         var room = await _roomService.StartGameAsync(id, gameConfigJson);
         return Ok(room);
@@ -164,7 +165,8 @@ public class RoomController : ControllerBase
     public async Task<ActionResult> PerformPlayerAction(
         Guid roomId,
         Guid playerId,
-        [FromBody] PlayerActionRequest request)
+        [FromBody] PlayerActionRequest request
+    )
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -177,7 +179,10 @@ public class RoomController : ControllerBase
 
     // POST: api/room/{roomId}/join
     [HttpPost("{roomId}/join")]
-    public async Task<ActionResult<RoomDTO>> JoinRoom(Guid roomId, [FromBody] JoinRoomRequest request)
+    public async Task<ActionResult<RoomDTO>> JoinRoom(
+        Guid roomId,
+        [FromBody] JoinRoomRequest request
+    )
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -188,7 +193,10 @@ public class RoomController : ControllerBase
 
     // POST: api/room/{roomId}/leave
     [HttpPost("{roomId}/leave")]
-    public async Task<ActionResult<RoomDTO>> LeaveRoom(Guid roomId, [FromBody] LeaveRoomRequest request)
+    public async Task<ActionResult<RoomDTO>> LeaveRoom(
+        Guid roomId,
+        [FromBody] LeaveRoomRequest request
+    )
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
@@ -196,6 +204,51 @@ public class RoomController : ControllerBase
         var room = await _roomService.LeaveRoomAsync(roomId, request.UserId);
         return Ok(room);
     }
+
+    #region SSE
+
+    private readonly IRoomSSEService _roomSSEService = roomSSEService;
+
+    /// <summary>
+    /// Long‑lived SSE endpoint for clients to subscribe to room events.
+    /// </summary>
+    /// <param name="roomId"></param>
+    /// <returns></returns>
+    [HttpGet("{roomId}/events")]
+    public async Task GetRoomEvents(Guid roomId)
+    {
+        if (HttpContext.Request.Headers.Accept.Contains("text/event-stream"))
+        {
+            await _roomSSEService.AddConnectionAsync(roomId, HttpContext.Response);
+        }
+        else
+        {
+            throw new BadRequestException(
+                "This endpoint requires the header 'Accept: text/event-stream'."
+            );
+        }
+    }
+
+    /// <summary>
+    /// Test endpoint to broadcast an event to all clients in a room.
+    /// Authenticated per user, but allows anonymous users to send messages.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{roomId}/chat")]
+    public async Task<IActionResult> BroadcastMessage(Guid roomId, [FromBody] MessageDTO message)
+    {
+        if (message == null || string.IsNullOrWhiteSpace(message.Content))
+        {
+            throw new BadRequestException("Message content cannot be empty.");
+        }
+
+        string name = User.Identity?.Name ?? "Anonymous";
+
+        await _roomSSEService.BroadcastEventAsync(roomId, "message", $"{name}: {message.Content}");
+        return Ok();
+    }
+
+    #endregion
 }
 
 // Request DTOs
