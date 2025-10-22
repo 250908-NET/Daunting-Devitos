@@ -223,6 +223,13 @@ public class BlackjackService(
 
                 // next player or next stage
                 await NextHandOrFinishRoundAsync(state);
+                // not allowed after splitting!
+                //   maybe check if player only has one hand?
+
+                // refund half of player's bet (deduct from balance and update gamestate)
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             case HurryUpAction hurryUpAction:
                 if (state.CurrentStage is BlackjackBettingStage bettingStage)

@@ -20,7 +20,7 @@ namespace Project.Test.Services
             _handRepositoryMock = new Mock<IHandRepository>();
             _handService = new HandService(
                 _handRepositoryMock.Object,
-                new Mock<ILogger<HandService>>().Object
+                Mock.Of<ILogger<HandService>>()
             );
         }
 
@@ -35,7 +35,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -49,7 +48,6 @@ namespace Project.Test.Services
             Assert.Equal(handId, createdHand.Id);
             Assert.Equal(roomId, createdHand.RoomPlayerId);
             Assert.Equal(1, createdHand.Order);
-            Assert.Equal("[]", createdHand.CardsJson);
             Assert.Equal(100, createdHand.Bet);
             _handRepositoryMock.Verify(repo => repo.CreateHandAsync(It.IsAny<Hand>()), Times.Once);
         }
@@ -66,7 +64,6 @@ namespace Project.Test.Services
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 1,
-                    CardsJson = "[]",
                     Bet = 100,
                 },
                 new Hand
@@ -74,7 +71,6 @@ namespace Project.Test.Services
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 2,
-                    CardsJson = "[]",
                     Bet = 200,
                 },
             };
@@ -119,7 +115,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = Guid.NewGuid(),
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -161,7 +156,6 @@ namespace Project.Test.Services
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 1,
-                    CardsJson = "[]",
                     Bet = 100,
                 },
                 new Hand
@@ -169,7 +163,6 @@ namespace Project.Test.Services
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 2,
-                    CardsJson = "[]",
                     Bet = 200,
                 },
             };
@@ -217,7 +210,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -226,7 +218,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 2,
-                CardsJson = "[\"AS\",\"KH\"]",
                 Bet = 200,
             };
 
@@ -238,7 +229,6 @@ namespace Project.Test.Services
 
             Assert.NotNull(resultHand);
             Assert.Equal(2, resultHand.Order);
-            Assert.Equal("[\"AS\",\"KH\"]", resultHand.CardsJson);
             Assert.Equal(200, resultHand.Bet);
             _handRepositoryMock.Verify(
                 repo => repo.UpdateHandAsync(handId, It.IsAny<Hand>()),
@@ -257,7 +247,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 2,
-                CardsJson = "[\"AS\",\"KH\"]",
                 Bet = 200,
             };
 
@@ -287,7 +276,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 
@@ -296,21 +284,20 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 150,
             };
 
             _handRepositoryMock
-                .Setup(repo => repo.PatchHandAsync(handId, 2, null, 150))
+                .Setup(repo => repo.PatchHandAsync(handId, 2, 150))
                 .ReturnsAsync(patchedHand);
 
-            var resultHand = await _handService.PatchHandAsync(handId, 2, null, 150);
+            var resultHand = await _handService.PatchHandAsync(handId, 2, 150);
 
             Assert.NotNull(resultHand);
             Assert.Equal(1, resultHand.Order);
             Assert.Equal(150, resultHand.Bet);
             _handRepositoryMock.Verify(
-                repo => repo.PatchHandAsync(handId, 2, null, 150),
+                repo => repo.PatchHandAsync(handId, 2, 150),
                 Times.Once
             );
         }
@@ -326,7 +313,6 @@ namespace Project.Test.Services
                     repo.PatchHandAsync(
                         handId,
                         It.IsAny<int?>(),
-                        It.IsAny<string?>(),
                         It.IsAny<int?>()
                     )
                 )
@@ -334,7 +320,7 @@ namespace Project.Test.Services
 
             // Act & Assert
             await Assert.ThrowsAsync<Exception>(() =>
-                _handService.PatchHandAsync(handId, 2, null, 150)
+                _handService.PatchHandAsync(handId, 2, 150)
             );
 
             _handRepositoryMock.Verify(
@@ -342,7 +328,6 @@ namespace Project.Test.Services
                     repo.PatchHandAsync(
                         handId,
                         It.IsAny<int?>(),
-                        It.IsAny<string?>(),
                         It.IsAny<int?>()
                     ),
                 Times.Once
@@ -360,7 +345,6 @@ namespace Project.Test.Services
                 Id = handId,
                 RoomPlayerId = roomPlayerId,
                 Order = 1,
-                CardsJson = "[]",
                 Bet = 100,
             };
 

@@ -8,6 +8,7 @@ namespace Project.Api.Models;
 public class Room
 {
     [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 
     public Guid HostId { get; set; }
@@ -36,7 +37,7 @@ public class Room
 
     public int MinPlayers { get; set; }
 
-    public int DeckId { get; set; }
+    public string? DeckId { get; set; } = string.Empty;
 
     public int Round { get; set; }
 

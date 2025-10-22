@@ -4,6 +4,7 @@
     Children: HandService.cs
 */
 using Project.Api.Models;
+using Project.Api.DTOs;
 
 namespace Project.Api.Services;
 
@@ -20,12 +21,6 @@ public interface IHandService
 
     Task<Hand> UpdateHandAsync(Guid handId, Hand hand);
 
-    Task<Hand> PatchHandAsync(
-        Guid handId,
-        int? Order = null,
-        string? CardsJson = null,
-        int? Bet = null
-    );
-
+    Task<Hand> PatchHandAsync(Guid handId, int? Order = null, int? Bet = null);
     Task<Hand> DeleteHandAsync(Guid handId);
 }
