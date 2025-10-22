@@ -15,7 +15,9 @@
 using Microsoft.Extensions.ObjectPool;
 using Project.Api.Models;
 using Project.Api.Repositories;
+using Project.Api.Services.Interface;
 using Project.Api.Services;
+using Project.Api.DTOs;
 
 namespace Project.Api.Services;
 
@@ -26,7 +28,7 @@ public class HandService : IHandService
     private readonly ILogger<HandService> _logger;
 
     // Constructor
-    public HandService(IHandRepository repo, ILogger<HandService> logger)
+    public HandService(IHandRepository repo, IDeckApiService deckApiService, ILogger<HandService> logger)
     {
         // Dependency Injection
         _Repo = repo;
@@ -111,25 +113,6 @@ public class HandService : IHandService
             _logger.LogError(e, $"Error updating hand {handId}: {e.Message}");
             throw new Exception(e.Message);
         }
-    }
-
-    public async Task /*<List<CardDTO>>*/
-    AddCardsToHandAsync(Guid handId)
-    {
-        try
-        {
-            Hand hand = await GetHandByIdAsync(handId) ?? throw new Exception("Hand not found");
-            /*command here*/
-            //send Add a card and get a List of CardDTOs
-        }
-        catch (Exception e)
-        {
-            // throw an exception and Log it
-            _logger.LogError(e, $"Error adding cards to hand {handId}: {e.Message}");
-            throw new Exception(e.Message);
-        }
-
-        // Call to Deck Api Service to add a card
     }
 
     // Partially update an existing hand
