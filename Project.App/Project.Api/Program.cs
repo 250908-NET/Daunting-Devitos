@@ -21,6 +21,10 @@ public class Program
 {
     public static void Main(string[] args)
     {
+
+
+
+
         var builder = WebApplication.CreateBuilder(args);
 
         const string CorsPolicy = "FrontendCors";
@@ -197,3 +201,4 @@ public class Program
         app.Run();
     }
 }
+    
