@@ -18,6 +18,7 @@ public class BlackjackServiceTest
 {
     private readonly Mock<IRoomRepository> _roomRepositoryMock;
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
+    private readonly Mock<IHandRepository> _handRepositoryMock;
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
@@ -26,6 +27,7 @@ public class BlackjackServiceTest
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
         // Mocking IUserRepository is not needed for the betting action logic
         _blackjackService = new BlackjackService(
+             _handRepositoryMock.Object,
             _roomRepositoryMock.Object,
             _roomPlayerRepositoryMock.Object,
             new Mock<IUserRepository>().Object
