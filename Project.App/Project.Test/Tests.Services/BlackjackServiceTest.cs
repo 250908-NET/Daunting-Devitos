@@ -7,8 +7,10 @@ using Project.Api.DTOs;
 using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
+using Project.Api.Repositories; //added this here
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
+using Project.Api.Services.Interface; //added this here
 using Project.Api.Utilities;
 using Xunit;
 
@@ -18,17 +20,23 @@ public class BlackjackServiceTest
 {
     private readonly Mock<IRoomRepository> _roomRepositoryMock;
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
+    private readonly Mock<IHandRepository> _handRepositoryMock;
+    private readonly Mock<IDeckApiService> _deckApiServiceMock; //added this here
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
     {
         _roomRepositoryMock = new Mock<IRoomRepository>();
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
+        _handRepositoryMock = new Mock<IHandRepository>();
+        _deckApiServiceMock = new Mock<IDeckApiService>(); //added this here
         // Mocking IUserRepository is not needed for the betting action logic
         _blackjackService = new BlackjackService(
-            _roomRepositoryMock.Object,
-            _roomPlayerRepositoryMock.Object,
-            new Mock<IUserRepository>().Object
+            _roomRepositoryMock.Object, //added this here
+            _roomPlayerRepositoryMock.Object, //added this here
+            new Mock<IUserRepository>().Object, //added this here
+            _handRepositoryMock.Object, //added this here
+            _deckApiServiceMock.Object //added this here
         );
     }
 
@@ -170,7 +178,10 @@ public class BlackjackServiceTest
     {
         // Arrange
         var roomId = Guid.NewGuid();
-    var gameState = new BlackjackState { CurrentStage = new BlackjackPlayerActionStage(DateTimeOffset.UtcNow.AddMinutes(1), 0) };
+        var gameState = new BlackjackState
+        {
+            CurrentStage = new BlackjackPlayerActionStage(DateTimeOffset.UtcNow.AddMinutes(1), 0),
+        };
         var gameStateString = JsonSerializer.Serialize(gameState);
 
         _roomRepositoryMock.Setup(r => r.GetGameStateAsync(roomId)).ReturnsAsync(gameStateString);
