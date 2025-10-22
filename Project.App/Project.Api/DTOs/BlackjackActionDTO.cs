@@ -19,6 +19,8 @@ public record SplitAction(long Amount) : BlackjackActionDTO;
 
 public record SurrenderAction : BlackjackActionDTO;
 
+public record HurryUpAction : BlackjackActionDTO;
+
 public static class JsonElementExtensions
 {
     /// <summary>
@@ -36,6 +38,7 @@ public static class JsonElementExtensions
                     "double" => element.Deserialize<DoubleAction>(),
                     "split" => element.Deserialize<SplitAction>(),
                     "surrender" => (BlackjackActionDTO?)element.Deserialize<SurrenderAction>(),
+                    "hurry_up" => element.Deserialize<HurryUpAction>(),
                     _ => throw new NotSupportedException(
                         $"Action '{action}' is not a valid action for Blackjack."
                     ),

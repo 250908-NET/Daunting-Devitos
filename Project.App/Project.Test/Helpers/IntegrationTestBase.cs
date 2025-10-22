@@ -2,13 +2,13 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Project.Api;
 using Project.Api.Data;
-using Project.Api.Models;
 using Project.Api.Utilities;
 
 namespace Project.Test.Helpers;
@@ -38,6 +38,19 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
+
+                builder.ConfigureAppConfiguration(
+                    (context, configBuilder) =>
+                    {
+                        configBuilder.AddInMemoryCollection(
+                            new Dictionary<string, string?>
+                            {
+                                { "Google:ClientId", "dummy-client-id" },
+                                { "Google:ClientSecret", "dummy-client-secret" },
+                            }
+                        );
+                    }
+                );
 
                 builder.ConfigureServices(services =>
                 {

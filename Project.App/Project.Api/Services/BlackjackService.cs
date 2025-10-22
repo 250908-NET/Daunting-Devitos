@@ -109,6 +109,7 @@ public class BlackjackService(
             "double" => stage is BlackjackPlayerActionStage,
             "split" => stage is BlackjackPlayerActionStage,
             "surrender" => stage is BlackjackPlayerActionStage,
+            "hurry_up" => stage is BlackjackBettingStage or BlackjackPlayerActionStage,
             _ => false,
         };
 
@@ -238,7 +239,66 @@ public class BlackjackService(
                 // next player or next stage
 
                 await NextHandOrFinishRoundAsync(state, roomId);
+                // not allowed after splitting!
+                //   maybe check if player only has one hand?
+
+                // refund half of player's bet (deduct from balance and update gamestate)
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state, roomId);
                 throw new NotImplementedException();
+            case HurryUpAction hurryUpAction:
+                if (state.CurrentStage is BlackjackBettingStage bettingStage)
+                {
+                    // Check if deadline has passed
+                    if (DateTime.UtcNow < bettingStage.Deadline)
+                    {
+                        throw new BadRequestException(
+                            "Cannot hurry up - betting deadline has not passed yet."
+                        );
+                    }
+
+                    // Process all bets
+                    foreach ((Guid better, long bet) in bettingStage.Bets)
+                    {
+                        try
+                        {
+                            await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
+                        }
+                        catch (NotFoundException)
+                        {
+                            // a bet was recorded for a player who no longer exists?
+                            throw new InternalServerException(
+                                $"Could not find player {better} to process their bet."
+                            );
+                        }
+                    }
+
+                    // Move to next stage
+                    state.CurrentStage = new BlackjackPlayerActionStage(
+                        DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                        0
+                    );
+                    await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+
+                    // TODO: dealing stage
+
+                    // TODO: move to player action stage
+                }
+                else if (state.CurrentStage is BlackjackPlayerActionStage playerActionStage)
+                {
+                    // Check if deadline has passed
+                    if (DateTime.UtcNow < playerActionStage.Deadline)
+                    {
+                        throw new BadRequestException(
+                            "Cannot hurry up - player action deadline has not passed yet."
+                        );
+                    }
+
+                    // Move to next player or finish round
+                    await NextHandOrFinishRoundAsync(state, roomId);
+                }
+                break;
             default:
                 throw new NotImplementedException();
         }
@@ -405,7 +465,7 @@ public class BlackjackService(
        
     }
 
-    private async Task<int> GetCardValue(CardDTO card)
+    private static async Task<int> GetCardValue(CardDTO card)
     {
         return card.value switch
         {
