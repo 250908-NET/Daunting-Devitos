@@ -13,6 +13,7 @@ using Project.Api.Middleware;
 using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
+using Project.Api.Services.Interface;
 using Serilog;
 
 namespace Project.Api;

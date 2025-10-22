@@ -248,7 +248,7 @@ public class BlackjackService(
     // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
     // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(BlackjackState state)
+    private Task FinishRoundAsync(BlackjackState state)
     {
         // reveal dealer cards
 
