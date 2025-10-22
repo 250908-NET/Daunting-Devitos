@@ -1,14 +1,14 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Project.Api.Constants;
 using Project.Api.Data;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
@@ -529,6 +529,7 @@ public class RoomService(
         return MapToResponseDto(room);
     }
 
+    // TODO: replace with automapper implementation
     private static RoomDTO MapToResponseDto(Room room)
     {
         return new RoomDTO
@@ -548,32 +549,24 @@ public class RoomService(
         };
     }
 
+    // TODO: replace with FLuent API validator
     private static void Validate(CreateRoomDTO dto)
     {
         if (dto.MinPlayers < 1)
-            throw new ArgumentException(
-                "Minimum players must be at least 1.",
-                nameof(dto.MinPlayers)
-            );
+            throw new BadRequestException("Minimum players must be at least 1.");
 
         if (dto.MaxPlayers < dto.MinPlayers)
-            throw new ArgumentException(
-                "Maximum players must be >= minimum players.",
-                nameof(dto.MaxPlayers)
-            );
+            throw new BadRequestException("Maximum players must be >= minimum players.");
 
         if (string.IsNullOrWhiteSpace(dto.GameMode))
-            throw new ArgumentException("Game mode is required.", nameof(dto.GameMode));
+            throw new BadRequestException("Game mode is required.");
 
         if (string.IsNullOrWhiteSpace(dto.GameState))
-            throw new ArgumentException("Game state is required.", nameof(dto.GameState));
+            throw new BadRequestException("Game state is required.");
 
         // DeckId is now optional - it will be auto-created if not provided
 
         if (dto.Description?.Length > 500)
-            throw new ArgumentException(
-                "Description can't be longer than 500 characters.",
-                nameof(dto.Description)
-            );
+            throw new BadRequestException("Description can't be longer than 500 characters.");
     }
 }

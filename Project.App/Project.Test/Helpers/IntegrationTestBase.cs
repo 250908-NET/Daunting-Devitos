@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Project.Api;
 using Project.Api.Data;
-using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Test.Helpers;
 

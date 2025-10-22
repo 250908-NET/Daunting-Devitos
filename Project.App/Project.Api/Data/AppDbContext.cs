@@ -16,21 +16,11 @@ public partial class AppDbContext : DbContext
     /// <summary>
     /// Provides the configuration for TradeHubContext models.
     /// Any custom configurations should be defined in <see cref="OnModelCreatingPartial"/>.
+    /// DO NOT MODIFY THIS METHOD.
     /// </summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Configure GameState as JSON column for SQL Server
-        modelBuilder.Entity<Room>().Property(r => r.GameState).HasColumnType("nvarchar(max)");
-
-        // Add unique constraint to prevent duplicate player entries in same room
-        modelBuilder
-            .Entity<RoomPlayer>()
-            .HasIndex(rp => new { rp.RoomId, rp.UserId })
-            .IsUnique()
-            .HasDatabaseName("IX_RoomPlayer_RoomId_UserId_Unique");
-
         OnModelCreatingPartial(modelBuilder);
     }
 

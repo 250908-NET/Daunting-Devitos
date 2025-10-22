@@ -1,14 +1,11 @@
-using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories;
-using Xunit;
+using Project.Api.Repositories.Interface;
 
-namespace Project.Test.Repository
+namespace Project.Test.Repositories
 {
     public class HandRepositoryTest
     {

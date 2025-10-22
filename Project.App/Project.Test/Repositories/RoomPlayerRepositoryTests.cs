@@ -1,13 +1,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Project.Api.Data;
-using Project.Api.Enums;
-using Project.Api.Models;
 using Project.Api.Repositories;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 using Project.Test.Helpers;
 
-namespace Project.Test.Tests.Repositories;
+namespace Project.Test.Repositories;
 
 public class RoomPlayerRepositoryTests
 {

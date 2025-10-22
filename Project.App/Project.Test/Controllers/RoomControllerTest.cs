@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,7 +6,6 @@ using Project.Api.Controllers;
 using Project.Api.DTOs;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
-using Xunit;
 
 namespace Project.Test.Tests.Controllers
 {

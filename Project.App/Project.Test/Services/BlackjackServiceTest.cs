@@ -1,18 +1,13 @@
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Moq;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
-using Project.Api.Repositories; //added this here
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
-using Project.Api.Services.Interface; //added this here
+using Project.Api.Services.Interface;
 using Project.Api.Utilities;
-using Xunit;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Test.Tests.Services;
 
@@ -21,7 +16,7 @@ public class BlackjackServiceTest
     private readonly Mock<IRoomRepository> _roomRepositoryMock;
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
     private readonly Mock<IHandRepository> _handRepositoryMock;
-    private readonly Mock<IDeckApiService> _deckApiServiceMock; //added this here
+    private readonly Mock<IDeckApiService> _deckApiServiceMock;
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
@@ -29,14 +24,14 @@ public class BlackjackServiceTest
         _roomRepositoryMock = new Mock<IRoomRepository>();
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
         _handRepositoryMock = new Mock<IHandRepository>();
-        _deckApiServiceMock = new Mock<IDeckApiService>(); //added this here
+        _deckApiServiceMock = new Mock<IDeckApiService>();
         // Mocking IUserRepository is not needed for the betting action logic
         _blackjackService = new BlackjackService(
-            _roomRepositoryMock.Object, //added this here
-            _roomPlayerRepositoryMock.Object, //added this here
-            new Mock<IUserRepository>().Object, //added this here
-            _handRepositoryMock.Object, //added this here
-            _deckApiServiceMock.Object //added this here
+            _roomRepositoryMock.Object,
+            _roomPlayerRepositoryMock.Object,
+            new Mock<IUserRepository>().Object,
+            _handRepositoryMock.Object,
+            _deckApiServiceMock.Object
         );
     }
 
@@ -203,10 +198,7 @@ public class BlackjackServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
-        var bettingStage = new BlackjackBettingStage(
-            DateTimeOffset.UtcNow.AddMinutes(1),
-            new Dictionary<Guid, long>()
-        );
+        var bettingStage = new BlackjackBettingStage(DateTimeOffset.UtcNow.AddMinutes(1), []);
         var gameState = new BlackjackState { CurrentStage = bettingStage };
         var gameStateString = JsonSerializer.Serialize(gameState);
 
@@ -228,10 +220,7 @@ public class BlackjackServiceTest
         var roomId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
         var player = new RoomPlayer { Status = Status.Away, Balance = 50 }; // Not enough balance
-        var bettingStage = new BlackjackBettingStage(
-            DateTimeOffset.UtcNow.AddMinutes(1),
-            new Dictionary<Guid, long>()
-        );
+        var bettingStage = new BlackjackBettingStage(DateTimeOffset.UtcNow.AddMinutes(1), []);
         var gameState = new BlackjackState { CurrentStage = bettingStage };
         var gameStateString = JsonSerializer.Serialize(gameState);
 

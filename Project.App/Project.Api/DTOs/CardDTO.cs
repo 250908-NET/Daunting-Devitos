@@ -2,8 +2,8 @@ namespace Project.Api.DTOs;
 
 public class CardDTO
 {
-    public string code { get; set; } = string.Empty;
-    public string image { get; set; } = string.Empty;
-    public string value { get; set; } = string.Empty;
-    public string suit { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string Image { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Suit { get; set; } = string.Empty;
 }

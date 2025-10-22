@@ -5,9 +5,8 @@ using Project.Api.Models;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Test.Helpers;
-using Xunit;
 
-namespace Project.Test.Service;
+namespace Project.Test.Services;
 
 public class UserServiceTest
 {

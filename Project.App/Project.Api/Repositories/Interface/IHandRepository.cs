@@ -1,14 +1,12 @@
-/*
-    Name: IHandRepository.cs
-    Description: Interface for Hand repository
-    Children: HandRepository.cs
-*/
-using Project.Api.Enums;
 using Project.Api.Models;
-using Project.Api.Repositories;
 
-namespace Project.Api.Repositories
+namespace Project.Api.Repositories.Interface
 {
+    /*
+        Name: IHandRepository.cs
+        Description: Interface for Hand repository
+        Children: HandRepository.cs
+    */
     public interface IHandRepository
     {
         // Define Fields

@@ -1,8 +1,6 @@
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Numerics;
-using Project.Api.Enums;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Models;
 

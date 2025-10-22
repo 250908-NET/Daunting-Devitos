@@ -3,18 +3,17 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Project.Api.Constants;
 using Project.Api.Data;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
+using Project.Api.Utilities.Enums;
 using Project.Test.Helpers;
-using Xunit;
 
 namespace Project.Test.Tests.Services;
 
@@ -276,7 +275,7 @@ public class RoomServiceTest
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenMinPlayersLessThanOne()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenMinPlayersLessThanOne()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -292,11 +291,13 @@ public class RoomServiceTest
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenMaxPlayersLessThanMinPlayers()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenMaxPlayersLessThanMinPlayers()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -312,11 +313,13 @@ public class RoomServiceTest
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenGameModeIsEmpty()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenGameModeIsEmpty()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -332,11 +335,13 @@ public class RoomServiceTest
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenDescriptionTooLong()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenDescriptionTooLong()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -353,7 +358,9 @@ public class RoomServiceTest
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     #endregion

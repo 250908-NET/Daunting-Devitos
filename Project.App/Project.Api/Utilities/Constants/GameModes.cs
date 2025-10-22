@@ -1,4 +1,4 @@
-namespace Project.Api.Constants;
+namespace Project.Api.Utilities.Constants;
 
 /// <summary>
 /// Constants for supported game modes.

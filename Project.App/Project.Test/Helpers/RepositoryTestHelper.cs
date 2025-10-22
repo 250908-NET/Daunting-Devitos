@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
-using Project.Api.Enums;
 using Project.Api.Models;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Test.Helpers;
 

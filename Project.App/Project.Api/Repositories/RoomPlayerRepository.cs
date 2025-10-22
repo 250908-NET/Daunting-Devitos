@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Repositories;
 

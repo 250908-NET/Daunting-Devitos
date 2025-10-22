@@ -1,18 +1,12 @@
-using System.Security.Claims;
-using System.Text;
-using AutoMapper;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Http; // for Results
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
-using Project.Api.Middleware;
 using Project.Api.Repositories;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Api.Services.Interface;
+using Project.Api.Utilities.Middleware;
 using Serilog;
 
 namespace Project.Api;

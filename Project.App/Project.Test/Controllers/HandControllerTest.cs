@@ -5,11 +5,7 @@ using Moq;
 using Project.Api.Controllers;
 using Project.Api.DTOs;
 using Project.Api.Models;
-using Project.Api.Repositories;
-using Project.Api.Services;
 using Project.Api.Services.Interface;
-using Project.Test.Helpers;
-using Xunit;
 
 namespace Project.Test.Controllers
 {

@@ -1,12 +1,8 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Project.Api.DTOs;
 using Project.Api.Models;
-using Project.Api.Repositories;
-using Project.Api.Services;
 using Project.Api.Services.Interface;
-using Serilog;
 
 namespace Project.Api.Controllers
 {

@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Project.Api.Utilities;
 
-namespace Project.Api.Middleware;
+namespace Project.Api.Utilities.Middleware;
 
 public class GlobalExceptionHandler(RequestDelegate next, ILogger<GlobalExceptionHandler> logger)
 {

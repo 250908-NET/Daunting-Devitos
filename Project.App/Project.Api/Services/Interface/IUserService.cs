@@ -1,6 +1,6 @@
 using Project.Api.Models;
 
-namespace Project.Api.Services
+namespace Project.Api.Services.Interface
 {
     public interface IUserService
     {

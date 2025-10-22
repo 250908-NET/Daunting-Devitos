@@ -1,13 +1,11 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
-using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
@@ -220,7 +218,7 @@ public class BlackjackService(
 
                 foreach (var card in drawnCards)
                 {
-                    switch (card.value.ToUpper())
+                    switch (card.Value.ToUpper())
                     {
                         case "ACE":
                             aceCount++;
@@ -233,7 +231,7 @@ public class BlackjackService(
                             break;
                         default:
                             //Number cards (2–10) → handled by:
-                            if (int.TryParse(card.value, out int val))
+                            if (int.TryParse(card.Value, out int val))
                                 totalValue += val;
                             break;
                     }
@@ -446,7 +444,7 @@ public class BlackjackService(
         // Initialize next betting stage
         state.CurrentStage = new BlackjackBettingStage(
             DateTimeOffset.UtcNow + _config.BettingTimeLimit,
-            new Dictionary<Guid, long>()
+            []
         );
 
         // Reset dealer hand for next round

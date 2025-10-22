@@ -1,11 +1,8 @@
-using AutoMapper;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Project.Api.Models;
-using Project.Api.Repositories;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services;
-using Xunit;
 
 namespace Project.Test.Services
 {
@@ -59,14 +56,14 @@ namespace Project.Test.Services
             // Arrange
             var hands = new List<Hand>
             {
-                new Hand
+                new()
                 {
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 1,
                     Bet = 100,
                 },
-                new Hand
+                new()
                 {
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
@@ -151,14 +148,14 @@ namespace Project.Test.Services
             // Arrange
             var hands = new List<Hand>
             {
-                new Hand
+                new()
                 {
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
                     Order = 1,
                     Bet = 100,
                 },
-                new Hand
+                new()
                 {
                     Id = Guid.NewGuid(),
                     RoomPlayerId = roomId,
