@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Middleware;
 using Project.Api.Repositories;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Serilog;
@@ -67,6 +68,8 @@ public class Program
         builder.Services.AddScoped<IHandRepository, HandRepository>();
 
         builder.Services.AddSingleton<IRoomSSEService, RoomSSEService>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IUserService, UserService>();
 
         //Auto Mapper
         builder.Services.AddAutoMapper(typeof(Program));

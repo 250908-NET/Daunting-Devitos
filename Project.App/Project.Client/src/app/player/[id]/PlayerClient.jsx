@@ -7,7 +7,8 @@ import AddCreditsModal from '../../components/AddCreditsModal';
 export default function PlayerClient({ _id, initialBalance }) {
   const router = useRouter();
   const [playerName] = useState('Danny Devito');
-  const [balance, setBalance] = useState(initialBalance ?? 1000);
+  const [playerId, setPlayerId] = useState('');
+  const [balance, setBalance] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [creditsToAdd, setCreditsToAdd] = useState('');
 
@@ -28,16 +29,54 @@ export default function PlayerClient({ _id, initialBalance }) {
         console.error('Auth check failed:', err);
         router.replace('/login');
       });
+  
+    console.log('Fetching user data');
+    fetch(`${apiBaseUrl}/api/user/me`, { credentials: 'include' })
+        .then((res) => {
+          console.log('User data response received');
+          if (!res.ok) {
+            console.log('Failed to fetch user data ' + res.status);
+            router.replace('/rooms');
+          } else {
+            res.json().then((data) => {
+              console.log('User found:', data);
+              setPlayerId(data.id);
+              setPlayerName(data.name);
+              setBalance(data.balance);
+            });
+            // setAvatarUrl(data.avatarUrl); google 
+          }
+        }) 
   }, [router]);
 
   const handleAddCredits = (e) => {
+    console.log('Balance update started');
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7069';
     e.preventDefault();
     const amount = parseFloat(creditsToAdd);
     if (!isNaN(amount) && amount > 0) {
       setBalance((prev) => prev + amount);
       setCreditsToAdd('');
       setShowModal(false);
+
       // Later: PATCH to backend with new balance for player {id}
+      console.log('Patch requet sending');
+      fetch(`${apiBaseUrl}/api/user/${playerId}`, { 
+        credentials: 'include',
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: playerId, balance: balance})
+      })
+        .then((res) => {
+          console.log('Balance up date response received');
+          if (!res.ok) {
+            console.log('Failed to update balance');
+          } else {
+            console.log('Balance updated successfully');
+          }
+        }) 
     }
   };
 

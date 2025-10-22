@@ -23,6 +23,7 @@ export default function AddCreditsModal({ isOpen, onClose, balance, creditsToAdd
               type="number"
               step="10"
               min="0"
+              max="200000"
               value={creditsToAdd}
               onChange={(e) => setCreditsToAdd(e.target.value)}
               placeholder="0"

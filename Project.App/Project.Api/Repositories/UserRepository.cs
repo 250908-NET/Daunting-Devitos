@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
+using Project.Api.Repositories.Interface;
+using Project.Api.Utilities;
 
 namespace Project.Api.Repositories.Interface
 {
@@ -43,6 +45,13 @@ namespace Project.Api.Repositories.Interface
 
         // Update existing user
         public async Task UpdateAsync(User user)
+        {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+        
+        // Update user balance
+        public async Task UpdateBalanceAsync(User user)
         {
             _context.Users.Update(user);
             await _context.SaveChangesAsync();

@@ -43,7 +43,7 @@ export default function NavBar() {
   if (pathname.startsWith('/player/')) {
     links = [{ href: '/rooms', label: 'Rooms' }];
   } else if (pathname.startsWith('/rooms')) {
-    links = [{ href: '/player/1', label: 'Profile' }];
+    links = [{ href: '/player/profile', label: 'Profile' }];
   } else if (pathname.startsWith('/game/')) {
     links = [{ href: '/rooms', label: 'Leave Room' }];
   }

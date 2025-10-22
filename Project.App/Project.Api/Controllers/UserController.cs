@@ -69,6 +69,21 @@ namespace Project.Api.Controllers
             return NoContent();
         }
 
+        // PATCH: api/user/{id}
+        [HttpPatch("{id}")]
+        [Authorize]
+        public async Task<IActionResult> UpdateBalance(Guid id, double balance)
+        {
+            var existingUser = await _userRepository.GetByIdAsync(id);
+            if (existingUser == null)
+                return NotFound($"User with ID {id} not found.");
+
+            // Update allowed fields
+            existingUser.Balance = balance;
+            await _userRepository.UpdateBalanceAsync(existingUser);
+            return NoContent();
+        }
+
         // DELETE: api/user/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(Guid id)
