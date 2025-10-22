@@ -7,6 +7,7 @@ namespace Project.Api.Models
     public class User
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
 
         [Required, MaxLength(256)]

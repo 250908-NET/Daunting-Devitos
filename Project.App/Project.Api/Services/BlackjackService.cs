@@ -71,12 +71,17 @@ solution (the funny one):
 public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
-    IUserRepository userRepository
+    IUserRepository userRepository,
+    IDeckApiService deckApiService
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
+
+    private readonly IDeckApiService _deckApiService = deckApiService;
+
+
 
     private BlackjackConfig _config = new();
     public BlackjackConfig Config
@@ -191,7 +196,7 @@ public class BlackjackService(
                 throw new NotImplementedException();
             case StandAction standAction:
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(roomId, state);
+                await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
@@ -203,7 +208,8 @@ public class BlackjackService(
                 // draw one card
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(roomId, state);
+                await NextHandOrFinishRoundAsync(state);
+
                 throw new NotImplementedException();
             case SplitAction splitAction:
                 // can only be done on the player's first turn!
@@ -221,7 +227,8 @@ public class BlackjackService(
                 // refund half of player's bet (deduct from balance and update gamestate)
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(roomId, state);
+                await NextHandOrFinishRoundAsync(state);
+
                 throw new NotImplementedException();
             default:
                 throw new NotImplementedException();
@@ -231,12 +238,14 @@ public class BlackjackService(
     /// <summary>
     /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
     /// </summary>
-    private async Task NextHandOrFinishRoundAsync(Guid roomId, BlackjackState state)
+    private async Task NextHandOrFinishRoundAsync(BlackjackState state)
     {
+    
         // move to next player
 
         // if player is last player, move to next stage
-        await FinishRoundAsync(roomId, state);
+        await FinishRoundAsync(state);
+
 
         throw new NotImplementedException();
     }
@@ -248,26 +257,24 @@ public class BlackjackService(
     // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
     // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(Guid roomId, BlackjackState state)
+    private async Task FinishRoundAsync(BlackjackState state)
     {
         // reveal dealer cards
-        
+
+
         // do dealer turn, if needed (until dealer has 17 or higher)
-        /*
-            
-        */
+
+        
+        
         // calculate winnings
         /*
             
 
         */
         // distribute winnings
-        state.CurrentStage = new BlackjackTeardownStage();
-        await _roomRepository.UpdateGameStateAsync(
-            roomId,
-            JsonSerializer.Serialize(state)
-        );
+        
         // initialize betting stage
         
+
     }
 }

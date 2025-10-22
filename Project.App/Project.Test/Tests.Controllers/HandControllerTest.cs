@@ -93,13 +93,15 @@ namespace Project.Test.Controllers
 
             _mockHandService
                 .Setup(service => service.GetHandByIdAsync(handId))
-                .ReturnsAsync((Hand?)null);
+                .ThrowsAsync(new Exception("Hand not found"));
 
             // Act
+
             var result = await _controller.GetHandById(handId, roomId);
+            
+            Assert.IsType<NotFoundObjectResult>(result);
 
             // Assert
-            Assert.IsType<NotFoundResult>(result);
             _mockHandService.Verify(service => service.GetHandByIdAsync(handId), Times.Once);
         }
 
