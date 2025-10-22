@@ -32,6 +32,7 @@ DeVito Lounge is a full-stack web application that brings the classic blackjack 
 ![alt text](Images/Wireframe.jpg)
 
 ## Unit Test Coverage
+![alt text](Images/Test%20Code%20Coverage.png)
 
 ## API Endpoints Documentation
 

@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: 'Double Down Devito',
   description: 'Welcome to Double Down Devito',
+  icons: {
+    icon: '/devito.png',
+    shortcut: '/devito.png',
+    apple: '/devito.png',
+  },
 };
 
 export default function RootLayout({ children }) {

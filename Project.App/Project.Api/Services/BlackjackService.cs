@@ -191,71 +191,9 @@ public class BlackjackService(
 
                 break;
             case HitAction hitAction:
-                // Fetch player’s hand
-                var hand = await _handRepository.GetHandsByRoomIdAsync(player.Id)
-                    ?? throw new BadRequestException("No hand found for this player.");
-
-                // Retrieve deck ID from room configuration or state
-                var room = await _roomRepository.GetByIdAsync(roomId)
-                    ?? throw new BadRequestException("Room not found.");
-
-                // Draw one card and add it to player’s hand
-                var drawnCards = await _deckApiService.PlayerDraw(room.DeckId, hand.Id.GetHashCode());
-
-                // Merge cards
-                var existingCards = string.IsNullOrEmpty(hand.CardsJson)
-                    ? new List<CardDTO>()
-                    : JsonSerializer.Deserialize<List<CardDTO>>(hand.CardsJson) ?? new List<CardDTO>();
-
-                existingCards.AddRange(drawnCards);
-                hand.CardsJson = JsonSerializer.Serialize(existingCards);
-                await _handRepository.UpdateHandAsync(hand.Id, hand);
-                
-                // --- Calculate total value and check for bust ---
-                int totalValue = 0;
-                int aceCount = 0;
-
-                foreach (var card in existingCards)
-                {
-                    switch (card.Symbol)
-                    {
-                        case "A":
-                            aceCount++;
-                            totalValue += 11; // initially count Aces as 11
-                            break;
-                        case "K":
-                        case "Q":
-                        case "J":
-                            totalValue += 10;
-                            break;
-                        default:
-                            if (int.TryParse(card.Symbol, out int value))
-                                totalValue += value;
-                            break;
-                    }
-                }
-
-                // Adjust for Aces if total > 21
-                while (totalValue > 21 && aceCount > 0)
-                {
-                    totalValue -= 10;
-                    aceCount--;
-                }
-
-                // Check for bust
-                if (totalValue > 21)
-                {
-                    await _roomPlayerRepository.UpdateAsync(player);
-                    await NextHandOrFinishRoundAsync(state);
-                }
-                await NextHandOrFinishRoundAsync(state);
-                break;
+                throw new NotImplementedException();
             case StandAction standAction:
-                var hands = await _handRepository.GetHandsByRoomIdAsync(player.Id)
-                    ?? throw new BadRequestException("No hand found for this player.");
-
-                await NextHandOrFinishRoundAsync(state);
-                break;
+                throw new NotImplementedException();
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
 
@@ -289,39 +227,5 @@ public class BlackjackService(
             default:
                 throw new NotImplementedException();
         }
-    }
-
-    /// <summary>
-    /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
-    /// </summary>
-    private async Task NextHandOrFinishRoundAsync(BlackjackState state)
-    {
-        // move to next player
-
-        // if player is last player, move to next stage
-        await FinishRoundAsync(state);
-
-        throw new NotImplementedException();
-    }
-
-    // After the players have finished playing, the dealer's hand is resolved by drawing cards until 
-    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11 
-    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit. 
-    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win. 
-    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
-    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
-    // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(BlackjackState state)
-    {
-        // reveal dealer cards
-
-        // do dealer turn, if needed (until dealer has 17 or higher)
-
-        // calculate winnings
-
-        // distribute winnings
-
-        // initialize betting stage
-        throw new NotImplementedException();
     }
 }
