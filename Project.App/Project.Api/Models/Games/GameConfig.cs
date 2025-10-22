@@ -6,7 +6,7 @@ namespace Project.Api.Models.Games;
 /// </summary>
 public abstract record GameConfig
 {
-    public int? MaxPlayers { get; set; }
-    public int MinPlayers { get; set; } = 1;
-    public TimeSpan TurnTimeLimit { get; set; } = TimeSpan.FromSeconds(30);
+    public virtual int? MaxPlayers { get; set; }
+    public virtual int MinPlayers { get; set; } = 1;
+    public virtual TimeSpan TurnTimeLimit { get; set; } = TimeSpan.FromSeconds(30);
 }
