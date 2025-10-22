@@ -40,13 +40,17 @@ namespace Project.Api.Controllers
         [HttpGet("/{handId}", Name = "GetHandById")]
         public async Task<IActionResult> GetHandById(Guid handId, Guid roomId)
         {
-            var hand = await _handService.GetHandByIdAsync(handId);
-            if (hand == null || hand.RoomPlayer == null || hand.RoomPlayer.RoomId != roomId)
+            try
             {
-                return NotFound();
+                var hand = await _handService.GetHandByIdAsync(handId);
+                var handDto = _mapper.Map<HandDTO>(hand);
+                return Ok(handDto);
             }
-            var handDto = _mapper.Map<HandDTO>(hand);
-            return Ok(handDto);
+            catch (Exception e)
+            {
+                _logger.LogError(e, $"Error getting hand {handId} in room {roomId}: {e.Message}");
+                return NotFound(e.Message);
+            }
         }
 
         [HttpGet("/user/{userId}", Name = "GetHandsByUserId")]

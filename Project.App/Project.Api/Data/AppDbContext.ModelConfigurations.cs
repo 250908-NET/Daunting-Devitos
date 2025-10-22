@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Project.Api.Models;
 
 namespace Project.Api.Data;
 
@@ -9,6 +10,22 @@ public partial class AppDbContext
         // apply any IEntityTypeConfiguration<> implementations found in this assembly
         // fully automatic! the wonders of modern technology
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder
+            .Entity<RoomPlayer>()
+            .HasOne(rp => rp.User)
+            .WithMany(u => u.RoomPlayers)
+            .HasForeignKey(rp => rp.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder
+            .Entity<RoomPlayer>()
+            .HasOne(rp => rp.Room)
+            .WithMany(r => r.RoomPlayers)
+            .HasForeignKey(rp => rp.RoomId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // example enum -> string conversion config
         // modelBuilder.Entity<Item>().Property(i => i.Condition).HasConversion<string>();

@@ -23,7 +23,7 @@ public class HandRepository : IHandRepository
 
     // Implement the methods
     // Get a hand by its ID
-    public async Task<Hand?> GetHandAsyncById(Guid handId)
+    public async Task<Hand?> GetHandByIdAsync(Guid handId)
     {
         // Validate handId
         if (handId == Guid.Empty)
@@ -125,7 +125,7 @@ public class HandRepository : IHandRepository
         // Update properties if provided
         existingHand.Order = Order ?? existingHand.Order;
         existingHand.CardsJson = CardsJson ?? existingHand.CardsJson;
-        existingHand.Bet = Bet ?? existingHand.Bet;
+        existingHand.Bet += (Bet ?? 0);
 
         // Update the hand in the context and save changes
         _context.Hands.Update(existingHand);
@@ -156,10 +156,5 @@ public class HandRepository : IHandRepository
     {
         // Save changes to the database
         await _context.SaveChangesAsync();
-    }
-
-    public Task<Hand?> GetHandByIdAsync(Guid handId)
-    {
-        throw new NotImplementedException();
     }
 }
