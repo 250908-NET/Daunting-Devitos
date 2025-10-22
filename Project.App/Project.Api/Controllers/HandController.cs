@@ -21,6 +21,8 @@ namespace Project.Api.Controllers
 
         private readonly IMapper _mapper;
 
+
+
         public HandController(
             ILogger<HandController> logger,
             IHandService handService,
@@ -33,6 +35,8 @@ namespace Project.Api.Controllers
             _deckApiService = deckApiService;
             _mapper = mapper;
         }
+
+
 
         [HttpGet("/", Name = "GetHandsByRoomId")]
         public async Task<IActionResult> GetHandsByRoomId(Guid roomId)

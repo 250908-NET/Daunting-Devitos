@@ -60,7 +60,7 @@ public static class RepositoryTestHelper
             GameState = gameState ?? "Waiting",
             MaxPlayers = maxPlayers,
             MinPlayers = minPlayers,
-            DeckId = 1,
+            DeckId = "1",
             Round = 0,
         };
     }

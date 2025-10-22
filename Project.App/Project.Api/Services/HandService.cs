@@ -28,7 +28,7 @@ public class HandService : IHandService
     private readonly ILogger<HandService> _logger;
 
     // Constructor
-    public HandService(IHandRepository repo, IDeckApiService deckApiService, ILogger<HandService> logger)
+    public HandService(IHandRepository repo, ILogger<HandService> logger)
     {
         // Dependency Injection
         _Repo = repo;
