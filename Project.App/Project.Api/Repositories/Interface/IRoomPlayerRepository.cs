@@ -24,5 +24,6 @@ namespace Project.Api.Repositories.Interface
         Task<RoomPlayer?> GetRoomHostAsync(Guid roomId);
         Task UpdatePlayerStatusAsync(Guid id, Status status);
         Task UpdatePlayerBalanceAsync(Guid id, long balance);
+        Task UpdatePlayersInRoomAsync(Guid roomId, Action<RoomPlayer> updateAction);
     }
 }
