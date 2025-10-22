@@ -1,10 +1,11 @@
 using System.Text.Json.Serialization;
+using Project.Api.DTOs;
 
 namespace Project.Api.Models.Games;
 
 public record BlackjackState : GameState<BlackjackStage>
 {
-    public List<object> DealerHand { get; set; } = [];
+    public List<CardDTO> DealerHand { get; set; } = [];
 }
 
 [JsonDerivedType(typeof(BlackjackInitStage), typeDiscriminator: "init")]

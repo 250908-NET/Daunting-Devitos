@@ -259,22 +259,57 @@ public class BlackjackService(
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
     private async Task FinishRoundAsync(BlackjackState state)
     {
+        List<int> dealerHandValues = new();
+        bool dealer = false;
         // reveal dealer cards
 
 
-        // do dealer turn, if needed (until dealer has 17 or higher)
 
-        
-        
+        // do dealer turn, if needed (until dealer has 17 or higher)
+        while (dealerHandValues.Sum() < 17)
+        {
+            if(!dealer)
+            {
+                foreach (var card in state.DealerHand)
+                {
+                    int cardValue = await GetCardValue(card);
+                    dealerHandValues.Add(cardValue);
+                }
+                dealer = true;
+            }
+            else
+            {
+            }
+        }
+
+
         // calculate winnings
         /*
             
 
         */
         // distribute winnings
-        
-        // initialize betting stage
-        
 
+        // initialize betting stage
+
+
+    }
+    
+    public async Task<int> GetCardValue(CardDTO card)
+    {
+        return card.value switch
+        {
+            "ACE" => 11,
+            "2" => 2,
+            "3" => 3,
+            "4" => 4,
+            "5" => 5,
+            "6" => 6,
+            "7" => 7,
+            "8" => 8,
+            "9" => 9,
+            "10" or "JACK" or "QUEEN" or "KING" => 10,
+            _ => 0,
+        };
     }
 }
