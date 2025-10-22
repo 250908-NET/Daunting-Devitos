@@ -32,7 +32,6 @@ namespace Project.Api.Repositories
         Task<Hand> PatchHandAsync(
             Guid handId,
             int? Order = null,
-            string? CardsJson = null,
             int? Bet = null
         );
 

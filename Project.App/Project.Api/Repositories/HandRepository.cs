@@ -98,7 +98,6 @@ public class HandRepository : IHandRepository
 
         // Update properties
         existingHand.Order = hand.Order;
-        existingHand.CardsJson = hand.CardsJson;
         existingHand.Bet = hand.Bet;
 
         // Update the hand in the context and save changes
@@ -113,7 +112,6 @@ public class HandRepository : IHandRepository
     public async Task<Hand> PatchHandAsync(
         Guid handId,
         int? Order = null,
-        string? CardsJson = null,
         int? Bet = null
     )
     {
@@ -124,7 +122,6 @@ public class HandRepository : IHandRepository
 
         // Update properties if provided
         existingHand.Order = Order ?? existingHand.Order;
-        existingHand.CardsJson = CardsJson ?? existingHand.CardsJson;
         existingHand.Bet += (Bet ?? 0);
 
         // Update the hand in the context and save changes

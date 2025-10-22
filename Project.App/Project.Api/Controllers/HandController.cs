@@ -83,11 +83,13 @@ namespace Project.Api.Controllers
         }
 
         [HttpPatch("/{handId}", Name = "AddCardsToHand")]
-        public async Task<IActionResult> AddCardsToHand(Guid handId, string cardsJSON)
+        public async Task<IActionResult> AddCardsToHand(Guid handId)
         {
-            var updatedHand = await _handService.PatchHandAsync(handId, CardsJson: cardsJSON);
-            var updatedHandDto = _mapper.Map<HandDTO>(updatedHand);
-            return Ok(updatedHandDto);
+            /*var updatedHand = */
+            await _handService.AddCardsToHandAsync(handId);
+            /*var updatedHandDto = _mapper.Map<List<CardDTO>>(updatedHand);
+            return Ok(updatedHandDto);*/
+            return Ok(/*updatedHandDto*/);
         }
 
         [HttpPatch("/{handId}/bet", Name = "UpdateHandBet")]

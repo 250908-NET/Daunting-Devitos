@@ -23,9 +23,9 @@ public interface IHandService
     Task<Hand> PatchHandAsync(
         Guid handId,
         int? Order = null,
-        string? CardsJson = null,
         int? Bet = null
     );
+    Task/*<List<CardDTO>>*/ AddCardsToHandAsync(Guid handId);
 
     Task<Hand> DeleteHandAsync(Guid handId);
 }

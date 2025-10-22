@@ -12,6 +12,7 @@
     DeleteHandAsync(Guid handId) - /{handId} # delete a hand by id
     Parent: IHandService.cs
 */
+using Microsoft.Extensions.ObjectPool;
 using Project.Api.Models;
 using Project.Api.Repositories;
 using Project.Api.Services;
@@ -111,12 +112,29 @@ public class HandService : IHandService
             throw new Exception(e.Message);
         }
     }
+    public async Task/*<List<CardDTO>>*/ AddCardsToHandAsync(Guid handId)
+    {
+        try
+        {
+            Hand hand = await GetHandByIdAsync(handId)
+                ?? throw new Exception("Hand not found");
+            /*command here*/
+            //send Add a card and get a List of CardDTOs
+        }
+        catch (Exception e)
+        {
+            // throw an exception and Log it
+            _logger.LogError(e, $"Error adding cards to hand {handId}: {e.Message}");
+            throw new Exception(e.Message);
+        }
+        
+        // Call to Deck Api Service to add a card
+    }
 
     // Partially update an existing hand
     public async Task<Hand> PatchHandAsync(
         Guid handId,
         int? Order = null,
-        string? CardsJson = null,
         int? Bet = null
     )
     {
@@ -124,7 +142,7 @@ public class HandService : IHandService
         {
             // send request to repository
             _logger.LogInformation($"Patching hand {handId}");
-            return await _Repo.PatchHandAsync(handId, Order, CardsJson, Bet);
+            return await _Repo.PatchHandAsync(handId, Order, Bet);
         }
         catch (Exception e)
         {
