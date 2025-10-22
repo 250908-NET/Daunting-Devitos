@@ -241,12 +241,12 @@ public class BlackjackService(
         throw new NotImplementedException();
     }
 
-    // After the players have finished playing, the dealer's hand is resolved by drawing cards until 
-    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11 
-    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit. 
-    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win. 
-    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
-    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
+    // After the players have finished playing, the dealer's hand is resolved by drawing cards until
+    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11
+    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit.
+    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win.
+    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
+    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
     private async Task FinishRoundAsync(BlackjackState state)
     {
