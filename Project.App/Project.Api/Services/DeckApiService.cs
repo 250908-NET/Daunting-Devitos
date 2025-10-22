@@ -144,7 +144,7 @@ public class DeckApiService : IDeckApiService
     Calls Api to list cards in specified pile from specified deck.
     Returns List<CardDTO>,
     */
-    private async Task<List<CardDTO>> listHand(string deckId, string handName)
+    public async Task<List<CardDTO>> listHand(string deckId, string handName)
     {
         string listPileUrl = $"https://deckofcardsapi.com/api/deck/{deckId}/pile/{handName}/list/";
         var listResponse = await _httpClient.GetAsync(listPileUrl);

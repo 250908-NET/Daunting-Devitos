@@ -196,8 +196,8 @@ public class BlackjackService(
                 throw new NotImplementedException();
             case StandAction standAction:
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
-                throw new NotImplementedException();
+                await NextHandOrFinishRoundAsync(state, roomId);
+                break;
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
 
@@ -208,10 +208,16 @@ public class BlackjackService(
                 // draw one card
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
-
+                await NextHandOrFinishRoundAsync(state, roomId);
                 throw new NotImplementedException();
             case SplitAction splitAction:
+                // can only be done on the player's first turn!
+
+                // check if player has enough chips to do the new bet
+
+                // deal new hand (2 cards)
+
+                // next turn should be player's first hand
                 // can only be done on the player's first turn!
 
                 // check if player has enough chips to do the new bet
@@ -227,8 +233,8 @@ public class BlackjackService(
                 // refund half of player's bet (deduct from balance and update gamestate)
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
 
+                await NextHandOrFinishRoundAsync(state, roomId);
                 throw new NotImplementedException();
             default:
                 throw new NotImplementedException();
@@ -238,16 +244,35 @@ public class BlackjackService(
     /// <summary>
     /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
     /// </summary>
-    private async Task NextHandOrFinishRoundAsync(BlackjackState state)
+    private async Task NextHandOrFinishRoundAsync(BlackjackState state, Guid roomId)
     {
-    
-        // move to next player
+        if (state.CurrentStage is not BlackjackPlayerActionStage playerActionStage)
+        {
+            throw new InvalidOperationException("Cannot move to next hand when not in player action stage.");
+        }
 
-        // if player is last player, move to next stage
-        await FinishRoundAsync(state);
+        // Get all active players in the room
+        IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
+        List<RoomPlayer> activePlayersList = activePlayers.ToList();
 
 
-        throw new NotImplementedException();
+        // Move to next player
+        int nextIndex = playerActionStage.Index + 1;
+
+        // If there are more players, continue with player actions
+        if (nextIndex < activePlayersList.Count)
+        {
+            state.CurrentStage = new BlackjackPlayerActionStage(
+                DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                nextIndex
+            );
+            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        }
+        else
+        {
+            // All players have finished, move to dealer turn and finish round
+            await FinishRoundAsync(state, roomId);
+        }
     }
 
     // After the players have finished playing, the dealer's hand is resolved by drawing cards until 
@@ -257,7 +282,7 @@ public class BlackjackService(
     // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
     // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(BlackjackState state)
+    private async Task FinishRoundAsync(BlackjackState state, Guid roomId)
     {
         List<int> dealerHandValues = new();
         bool dealer = false;
@@ -268,7 +293,7 @@ public class BlackjackService(
         // do dealer turn, if needed (until dealer has 17 or higher)
         while (dealerHandValues.Sum() < 17)
         {
-            if(!dealer)
+            if (!dealer)
             {
                 foreach (var card in state.DealerHand)
                 {
@@ -279,22 +304,74 @@ public class BlackjackService(
             }
             else
             {
+                // draw a card for dealer
+                Room? room = await _roomRepository.GetByIdAsync(roomId);
+                if (room == null || room.DeckId == null)
+                {
+                    throw new InternalServerException($"Room or DeckId not found for roomId: {roomId}");
+                }
+                List<CardDTO> drawnCards = await _deckApiService.DrawCards(room.DeckId, "Dealer", 1);
+
+                int cardValue = await GetCardValue(drawnCards.Last());
+                dealerHandValues.Add(cardValue);
+                state.DealerHand.Add(drawnCards.Last());
+                if (dealerHandValues.Sum() > 21 && dealerHandValues.Contains(11))
+                {
+                    dealerHandValues[dealerHandValues.IndexOf(11)] = 1;
+                }
             }
         }
 
 
-        // calculate winnings
-        /*
-            
 
-        */
-        // distribute winnings
+        // Transition to finish round stage
+        state.CurrentStage = new BlackjackFinishRoundStage();
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
 
-        // initialize betting stage
+        // TODO: Calculate winnings for each player hand
+        // Get all active players
+        IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
 
+        // For each player:
+        // 1. Get their hands from the database
+        // 2. Calculate hand value
+        // 3. Compare with dealer hand
+        // 4. Determine winnings (blackjack pays 3:2, regular win pays 1:1, push returns bet)
+        // 5. Update player balance
+        List<CardDTO> playerHandCards = new();
+        int totalValue = 0;
+        int totalReward = 0;
 
+        foreach (RoomPlayer player in activePlayers)
+        {
+            playerHandCards = await _deckApiService.listHand(roomId.ToString(), player.Id.ToString());
+            totalValue = await CalculateHandValue(playerHandCards);
+            foreach (var hand in player.Hands)
+            {
+                totalReward = (totalValue > 21 || totalValue < dealerHandValues.Sum() || ((dealerHandValues.Sum() == 21 && totalValue == 21) && dealerHandValues.Count < playerHandCards.Count)) ? 0 : hand.Bet * 2;
+                if (totalValue == dealerHandValues.Sum())
+                {
+                    totalReward /= 2; // Pay back the bet
+                }
+                await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, totalReward);
+            }
+            // TODO: Implement hand evaluation and payout logic
+            // This requires:
+            // - Getting player hands from database
+            // - Parsing card data from JSON
+            // - Comparing with dealer hand
+            // - Updating balances via repository
+        }
+        
+
+        // Initialize next betting stage
+        state.CurrentStage = new BlackjackBettingStage(
+            DateTimeOffset.UtcNow + _config.BettingTimeLimit,
+            new Dictionary<Guid, long>()
+        );
+       
     }
-    
+
     public async Task<int> GetCardValue(CardDTO card)
     {
         return card.value switch
@@ -311,5 +388,29 @@ public class BlackjackService(
             "10" or "JACK" or "QUEEN" or "KING" => 10,
             _ => 0,
         };
+    }
+    private async Task<int> CalculateHandValue(List<CardDTO> hand)
+    {
+        int value = 0;
+        int aceCount = 0;
+
+        foreach (var card in hand)
+        {
+            int cardValue = await GetCardValue(card);
+            value += cardValue;
+            if (card.value == "ACE")
+            {
+                aceCount++;
+            }
+        }
+
+        // Adjust for aces if value exceeds 21
+        while (value > 21 && aceCount > 0)
+        {
+            value -= 10; // Count ace as 1 instead of 11
+            aceCount--;
+        }
+
+        return value;
     }
 }

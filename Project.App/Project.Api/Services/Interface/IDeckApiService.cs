@@ -40,6 +40,8 @@ public interface IDeckApiService
     */
     Task<List<CardDTO>> DrawCards(string deckId, string handName, int count);
 
+    Task<List<CardDTO>> listHand(string deckId, string handName);
+
     /*
     Return all cards from all piles back to the main deck and shuffles deck.
     Returns true if successful.
