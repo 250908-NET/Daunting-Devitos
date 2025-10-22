@@ -74,8 +74,8 @@ public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
     IUserRepository userRepository,
-    IHandRepository handRepository
-    //IDeckApiService deckApiService
+    IHandRepository handRepository,
+    IDeckApiService deckApiService
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
@@ -191,9 +191,71 @@ public class BlackjackService(
 
                 break;
             case HitAction hitAction:
-                throw new NotImplementedException();
+                // Fetch player's hands
+                var hands = await _handRepository.GetHandsByRoomIdAsync(player.Id)
+                    ?? throw new BadRequestException("No hand found for this player.");
+
+                var hand = hands.FirstOrDefault()
+                    ?? throw new BadRequestException("No hand found for this player.");
+
+                // Retrieve deck ID from room configuration or state
+                var room = await _roomRepository.GetByIdAsync(roomId)
+                    ?? throw new BadRequestException("Room not found.");
+
+                // Draw one card and add it to player's hand
+                var drawnCards = await _deckApiService.DrawCards(room.DeckId.ToString(), hand.Id.ToString(), 1);
+
+                // Merge cards
+                var existingCards = string.IsNullOrEmpty(hand.CardsJson)
+                    ? new List<CardDTO>()
+                    : JsonSerializer.Deserialize<List<CardDTO>>(hand.CardsJson) ?? new List<CardDTO>();
+
+                existingCards.AddRange(drawnCards);
+                hand.CardsJson = JsonSerializer.Serialize(existingCards);
+                await _handRepository.UpdateHandAsync(hand.Id, hand);
+
+                // --- Calculate total value and check for bust ---
+                int totalValue = 0;
+                int aceCount = 0;
+
+                foreach (var card in existingCards)
+                {
+                    switch (card.value.ToUpper())
+                    {
+                        case "ACE":
+                            aceCount++;
+                            totalValue += 11;
+                            break;
+                        case "KING":
+                        case "QUEEN":
+                        case "JACK":
+                            totalValue += 10;
+                            break;
+                        default:
+                            if (int.TryParse(card.value, out int val))
+                                totalValue += val;
+                            break;
+                    }
+                }
+
+                while (totalValue > 21 && aceCount > 0)
+                {
+                    totalValue -= 10;
+                    aceCount--;
+                }
+
+                if (totalValue > 21)
+                {
+                    await _roomPlayerRepository.UpdateAsync(player);
+                    await NextHandOrFinishRoundAsync(state);
+                }
+                await NextHandOrFinishRoundAsync(state);
+                break;
+
             case StandAction standAction:
-                throw new NotImplementedException();
+
+                await NextHandOrFinishRoundAsync(state);
+                break;
             case DoubleAction doubleAction:
                 // can only be done on the player's first turn!
 
@@ -204,7 +266,7 @@ public class BlackjackService(
                 // draw one card
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
+                //await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             case SplitAction splitAction:
                 // can only be done on the player's first turn!
@@ -222,7 +284,7 @@ public class BlackjackService(
                 // refund half of player's bet (deduct from balance and update gamestate)
 
                 // next player or next stage
-                await NextHandOrFinishRoundAsync(state);
+                //await NextHandOrFinishRoundAsync(state);
                 throw new NotImplementedException();
             default:
                 throw new NotImplementedException();
