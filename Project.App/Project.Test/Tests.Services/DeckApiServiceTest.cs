@@ -108,7 +108,12 @@ namespace Project.Test.Services
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(listResponse),
-                    }, // 👈 Added third response
+                    },
+                    // service calls list twice (listPile then listHand), return same payload again
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(listResponse),
+                    }
                 }
             );
 
@@ -148,6 +153,31 @@ namespace Project.Test.Services
 
             // Assert
             Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CreateEmptyHand_ShouldReturnTrue_OnSuccess()
+        {
+            // Arrange
+            var client = CreateMockHttpClient("{\"success\": true}", HttpStatusCode.OK);
+            var service = new DeckApiService(client);
+
+            // Act
+            var result = await service.CreateEmptyHand("deck123", 7);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public async Task CreateEmptyHand_ShouldThrow_OnFailure()
+        {
+            // Arrange
+            var client = CreateMockHttpClient("", HttpStatusCode.InternalServerError);
+            var service = new DeckApiService(client);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<Exception>(() => service.CreateEmptyHand("deck123", 7));
         }
 
         [Fact]
