@@ -14,6 +14,11 @@ public partial class AppDbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder
+            .Entity<User>() //email should be unique
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
+        modelBuilder
             .Entity<RoomPlayer>()
             .HasOne(rp => rp.User)
             .WithMany(u => u.RoomPlayers)

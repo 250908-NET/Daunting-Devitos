@@ -8,8 +8,6 @@ namespace Project.Api.DTOs
 
         public required int Order { get; set; }
 
-        public required string CardsJson { get; set; }
-
         public required int Bet { get; set; }
     }
 }

@@ -31,10 +31,6 @@ namespace Project.Api.Migrations
                     b.Property<int>("Bet")
                         .HasColumnType("int");
 
-                    b.Property<string>("CardsJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("Order")
                         .HasColumnType("int");
 
@@ -67,6 +63,10 @@ namespace Project.Api.Migrations
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("GameConfig")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("GameMode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -79,6 +79,12 @@ namespace Project.Api.Migrations
                     b.Property<Guid>("HostId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublic")
+                        .HasColumnType("bit");
+
                     b.Property<int>("MaxPlayers")
                         .HasColumnType("int");
 
@@ -88,18 +94,18 @@ namespace Project.Api.Migrations
                     b.Property<int>("Round")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("State")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("isActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("isPublic")
-                        .HasColumnType("bit");
 
                     b.HasKey("Id");
 
@@ -115,6 +121,9 @@ namespace Project.Api.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<long>("Balance")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BalanceDelta")
                         .HasColumnType("bigint");
 
                     b.Property<int>("Role")
