@@ -16,6 +16,7 @@ public class RoomService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
     IBlackjackService blackjackService,
+    IDeckApiService deckApiService,
     AppDbContext dbContext,
     ILogger<RoomService> logger
 ) : IRoomService
@@ -23,6 +24,7 @@ public class RoomService(
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IBlackjackService _blackjackService = blackjackService;
+    private readonly IDeckApiService _deckApiService = deckApiService;
     private readonly AppDbContext _dbContext = dbContext;
     private readonly ILogger<RoomService> _logger = logger;
 
@@ -60,6 +62,15 @@ public class RoomService(
     {
         Validate(dto);
 
+        // Auto-create deck if DeckId is not provided
+        string deckId = dto.DeckId;
+        if (string.IsNullOrWhiteSpace(deckId))
+        {
+            _logger.LogInformation("Creating new deck for room");
+            deckId = await _deckApiService.CreateDeck(numOfDecks: 6, enableJokers: false);
+            _logger.LogInformation("Created deck with ID: {DeckId}", deckId);
+        }
+
         var room = new Room
         {
             Id = Guid.NewGuid(),
@@ -71,7 +82,7 @@ public class RoomService(
             Description = dto.Description,
             MaxPlayers = dto.MaxPlayers,
             MinPlayers = dto.MinPlayers,
-            DeckId = dto.DeckId,
+            DeckId = deckId,
             CreatedAt = DateTime.UtcNow,
             IsActive = true
         };
@@ -242,6 +253,24 @@ public class RoomService(
                     DealerHand = []
                 };
                 initialGameState = JsonSerializer.Serialize(blackjackState);
+
+                // Create empty hands in the deck for each player and the dealer
+                _logger.LogInformation("Creating empty hands for players and dealer in deck {DeckId}", room.DeckId);
+
+                // Get all players in the room
+                var players = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
+
+                // Create empty hand for each player (using their UserId as the hand identifier)
+                foreach (var player in players)
+                {
+                    await _deckApiService.CreateEmptyHand(room.DeckId, player.UserId.ToString());
+                    _logger.LogInformation("Created empty hand for player {PlayerId} in deck {DeckId}", player.UserId, room.DeckId);
+                }
+
+                // Create empty hand for dealer
+                await _deckApiService.CreateEmptyHand(room.DeckId, "dealer");
+                _logger.LogInformation("Created empty hand for dealer in deck {DeckId}", room.DeckId);
+
                 break;
 
             default:
@@ -513,8 +542,7 @@ public class RoomService(
         if (string.IsNullOrWhiteSpace(dto.GameState))
             throw new ArgumentException("Game state is required.", nameof(dto.GameState));
 
-        if (string.IsNullOrWhiteSpace(dto.DeckId))
-            throw new ArgumentException("DeckId is required.", nameof(dto.DeckId));
+        // DeckId is now optional - it will be auto-created if not provided
 
         if (dto.Description?.Length > 500)
             throw new ArgumentException("Description can't be longer than 500 characters.", nameof(dto.Description));

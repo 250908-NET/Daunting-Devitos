@@ -61,6 +61,8 @@ public class Program
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
         );
 
+        builder.Services.AddHttpClient<IDeckApiService, DeckApiService>();
+
         builder.Services.AddScoped<IHandService, HandService>();
 
         builder.Services.AddScoped<IHandRepository, HandRepository>();
