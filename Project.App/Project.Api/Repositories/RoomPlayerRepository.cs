@@ -136,6 +136,10 @@ public class RoomPlayerRepository(AppDbContext context) : IRoomPlayerRepository
     /// Adds the specified amount to the player's balance (can be negative).
     /// </summary>
     public async Task UpdatePlayerBalanceAsync(Guid id, long change)
+    /// <summary>
+    /// Adds the specified amount to the player's balance (can be negative).
+    /// </summary>
+    public async Task UpdatePlayerBalanceAsync(Guid id, long change)
     {
         RoomPlayer roomPlayer =
             await _context.RoomPlayers.FindAsync(id)
