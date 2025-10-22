@@ -240,9 +240,9 @@ public class BlackjackService(
                 if (totalValue > 21)
                 {
                     await _roomPlayerRepository.UpdateAsync(player);
-                    await NextHandOrFinishRoundAsync(state);
+                    await NextHandOrFinishRoundAsync(state, roomId);
                 }
-                await NextHandOrFinishRoundAsync(state);
+                await NextHandOrFinishRoundAsync(state, roomId);
                 break;
 
             case StandAction standAction:
