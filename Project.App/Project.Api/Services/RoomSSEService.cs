@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Project.Api.Services.Interface;
@@ -72,7 +71,7 @@ public class RoomSSEService : IRoomSSEService
         {
             try
             {
-                await writer.WriteLineAsync(eventPayload);
+                await writer.WriteAsync(eventPayload); // assume payload already includes terminating \n\n
                 await writer.FlushAsync();
             }
             catch (OperationCanceledException)
