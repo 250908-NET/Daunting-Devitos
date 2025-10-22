@@ -3,6 +3,7 @@ using Project.Api.DTOs;
 using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
+using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
@@ -72,12 +73,14 @@ public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
     IUserRepository userRepository,
-    IDeckApiService deckApiService
+    IDeckApiService deckApiService,
+    IHandRepository handRepository
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
+    private readonly IHandRepository _handRepository = handRepository;
 
     private readonly IDeckApiService _deckApiService = deckApiService;
 
@@ -286,6 +289,11 @@ public class BlackjackService(
     {
         List<int> dealerHandValues = new();
         bool dealer = false;
+        Room? room = await _roomRepository.GetByIdAsync(roomId);
+        if (room == null || room.DeckId == null)
+        {
+            throw new InternalServerException($"Room or DeckId not found for roomId: {roomId}");
+        }
         // reveal dealer cards
 
 
@@ -305,11 +313,7 @@ public class BlackjackService(
             else
             {
                 // draw a card for dealer
-                Room? room = await _roomRepository.GetByIdAsync(roomId);
-                if (room == null || room.DeckId == null)
-                {
-                    throw new InternalServerException($"Room or DeckId not found for roomId: {roomId}");
-                }
+            
                 List<CardDTO> drawnCards = await _deckApiService.DrawCards(room.DeckId, "Dealer", 1);
 
                 int cardValue = await GetCardValue(drawnCards.Last());
@@ -338,7 +342,7 @@ public class BlackjackService(
         // 3. Compare with dealer hand
         // 4. Determine winnings (blackjack pays 3:2, regular win pays 1:1, push returns bet)
         // 5. Update player balance
-        List<CardDTO> playerHandCards = new();
+        List<CardDTO> playerHandCards = [];
         int totalValue = 0;
         int totalReward = 0;
 
@@ -362,17 +366,46 @@ public class BlackjackService(
             // - Comparing with dealer hand
             // - Updating balances via repository
         }
-        
+
 
         // Initialize next betting stage
-        state.CurrentStage = new BlackjackBettingStage(
+
+        // Clear hands for next round
+        int i = 0;
+        state.DealerHand = [];
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        if (await _deckApiService.ReturnAllCardsToDeck(room.DeckId))
+        {
+            await _deckApiService.CreateEmptyHand(room.DeckId, "Dealer");
+            List<CardDTO> dealerHand = await _deckApiService.DrawCards(room.DeckId, "Dealer", 2);
+            foreach (var player in activePlayers)
+            {
+                foreach (var hand in player.Hands)
+                {
+                    await _handRepository.DeleteHandAsync(hand.Id);
+                }
+                await _deckApiService.CreateEmptyHand(room.DeckId, player.Id.ToString());
+                await _handRepository.CreateHandAsync(new Hand
+                {
+                    Id = player.Id,
+                    RoomPlayerId = player.Id,
+                    Bet = 0,
+                    Order = i++
+                });
+                await _deckApiService.DrawCards(room.DeckId, player.Id.ToString(), 2);
+            }
+            state.CurrentStage = new BlackjackBettingStage(
             DateTimeOffset.UtcNow + _config.BettingTimeLimit,
             new Dictionary<Guid, long>()
         );
+
+        }
+        
+
        
     }
 
-    public async Task<int> GetCardValue(CardDTO card)
+    private async Task<int> GetCardValue(CardDTO card)
     {
         return card.value switch
         {
