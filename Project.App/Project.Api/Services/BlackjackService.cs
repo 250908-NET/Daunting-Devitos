@@ -570,6 +570,8 @@ public class BlackjackService(
                 stage.PlayerIndex,
                 stage.HandIndex + 1
             );
+            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+            return;
         }
         catch (NotFoundException)
         {
