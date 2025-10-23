@@ -472,7 +472,7 @@ public class BlackjackService(
 
         foreach (RoomPlayer player in activePlayers)
         {
-            playerHandCards = await _deckApiService.listHand(roomId.ToString(), player.Id.ToString());
+            playerHandCards = await _deckApiService.ListHand(roomId.ToString(), player.Id.ToString());
             totalValue = await CalculateHandValue(playerHandCards);
             foreach (var hand in player.Hands)
             {
@@ -531,7 +531,7 @@ public class BlackjackService(
 
     private static async Task<int> GetCardValue(CardDTO card)
     {
-        return card.value switch
+        return card.Value switch
         {
             "ACE" => 11,
             "2" => 2,
@@ -555,7 +555,7 @@ public class BlackjackService(
         {
             int cardValue = await GetCardValue(card);
             value += cardValue;
-            if (card.value == "ACE")
+            if (card.Value == "ACE")
             {
                 aceCount++;
             }
