@@ -485,7 +485,7 @@ public class BlackjackService(
 
         if (stage.HandIndex != 0 || handCards.Count != 2)
         {
-            throw new BadRequestException("Double can only be done on the player's first turn.");
+            throw new BadRequestException("Split can only be done on the player's first turn.");
         }
 
         // check if both cards are the same value
@@ -545,7 +545,7 @@ public class BlackjackService(
     /// </summary>
     private async Task NextHandOrFinishRoundAsync(BlackjackState state, Guid roomId)
     {
-        if (state.CurrentStage is not BlackjackPlayerActionStage playerActionStage)
+        if (state.CurrentStage is not BlackjackPlayerActionStage)
         {
             throw new InvalidOperationException(
                 "Cannot move to next hand when not in player action stage."
