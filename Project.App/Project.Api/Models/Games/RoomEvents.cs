@@ -22,18 +22,24 @@ public class MessageEventData : IRoomEventData
 /// </summary>
 public record GameStateUpdateEventData : IRoomEventData
 {
-    public string GameStateJson { get; set; } = string.Empty;
-    public int Version { get; set; } = 0;
+    public required BlackjackStage CurrentStage { get; set; }
 }
 
 /// <summary>
-/// Specific DTO for a player action event
+/// Specific DTO for a player action event.
+/// Provides some context about the action taken by a player that any action might use.
 /// </summary>
 public record PlayerActionEventData : IRoomEventData
 {
     public Guid PlayerId { get; set; }
+    public int HandIndex { get; set; } = 0;
     public string Action { get; set; } = string.Empty;
-    public object? ActionDetails { get; set; } // e.g., BetAction, HitAction details
+
+    // TODO: make event data type-safe
+    public long? Amount { get; set; } = 0;
+    public List<CardDTO>? Cards { get; set; }
+    public Guid? TargetPlayerId { get; set; }
+    public bool? Success { get; set; } = true;
 }
 
 /// <summary>
@@ -68,6 +74,8 @@ public record DealerRevealEventData : IRoomEventData
 /// </summary>
 public record PlayerRevealEventData : IRoomEventData
 {
+    public Guid PlayerId { get; set; }
+    public int HandIndex { get; set; } = 0;
     public List<CardDTO> PlayerHand { get; set; } = [];
     public int PlayerScore { get; set; }
 }

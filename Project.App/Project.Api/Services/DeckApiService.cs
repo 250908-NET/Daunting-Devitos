@@ -6,9 +6,9 @@ using Project.Api.Utilities;
 
 namespace Project.Api.Services;
 
-public class DeckApiService : IDeckApiService
+public class DeckApiService(HttpClient client) : IDeckApiService
 {
-    private readonly HttpClient _httpClient;
+    private readonly HttpClient _httpClient = client;
 
     private readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
@@ -17,11 +17,6 @@ public class DeckApiService : IDeckApiService
     };
 
     private const string BASE_API_URL = "https://deckofcardsapi.com/api";
-
-    public DeckApiService(HttpClient client)
-    {
-        _httpClient = client;
-    }
 
     /// <summary>
     /// Create a new shuffled deck and return the deck ID.
@@ -77,7 +72,7 @@ public class DeckApiService : IDeckApiService
     /// Player draws specified number of cards, count, from specified deck.
     /// Draws one card by default.
     /// </summary>
-    /// <returns>true if successful</returns>
+    /// <returns>the cards drawn</returns>
     public async Task<List<CardDTO>> DrawCards(string deckId, long handId, int count = 1)
     {
         return await DrawCards(deckId, handId.ToString(), count);
@@ -87,7 +82,7 @@ public class DeckApiService : IDeckApiService
     /// Player draws specified number of cards, count, from specified deck.
     /// Draws one card by default.
     /// </summary>
-    /// <returns>the resulting contents of the player’s hand</returns>
+    /// <returns>the list of cards drawn</returns>
     public async Task<List<CardDTO>> DrawCards(string deckId, string handName, int count = 1)
     {
         // enforce non-negative count
@@ -107,8 +102,8 @@ public class DeckApiService : IDeckApiService
 
         if (drawData?.Cards is null || drawData.Cards.Count == 0)
         {
-            // shouldn't happen, but if it does, return the current hand
-            return await ListHand(deckId, handName);
+            // shouldn't happen, but if it does, return empty list
+            return [];
         }
 
         // get card codes (as csv string)
@@ -118,8 +113,8 @@ public class DeckApiService : IDeckApiService
         // add cards to the player’s hand
         await AddToHand(deckId, handName, cardsToAdd);
 
-        // return contents of hand
-        return await ListHand(deckId, handName);
+        // return only newly drawn cards
+        return drawData.Cards;
     }
 
     /// <summary>

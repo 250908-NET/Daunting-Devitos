@@ -32,7 +32,6 @@ public record BlackjackBettingStage(DateTimeOffset Deadline, Dictionary<Guid, lo
 public record BlackjackDealingStage : BlackjackStage;
 
 // player turn
-// TODO: figure out how turn order will work
 public record BlackjackPlayerActionStage(DateTimeOffset Deadline, int PlayerIndex, int HandIndex)
     : BlackjackStage;
 
