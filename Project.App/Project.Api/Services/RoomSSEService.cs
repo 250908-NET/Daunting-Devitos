@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Project.Api.Models.Games;
 using Project.Api.Services.Interface;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
@@ -51,7 +53,7 @@ public class RoomSSEService : IRoomSSEService
         }
     }
 
-    public async Task BroadcastEventAsync(Guid roomId, string eventName, object data)
+    public async Task BroadcastEventAsync(Guid roomId, RoomEventType eventType, IRoomEventData data)
     {
         // check if room exists in connections
         if (
@@ -64,7 +66,9 @@ public class RoomSSEService : IRoomSSEService
             return;
         }
 
-        string eventPayload = $"event: {eventName}\ndata: {JsonSerializer.Serialize(data)}\n\n";
+        // broadcast event using lowercase event type
+        string eventPayload =
+            $"event: {eventType.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(data, data.GetType())}\n\n";
         List<string> closedConnections = [];
 
         foreach ((string connectionId, StreamWriter writer) in connections)

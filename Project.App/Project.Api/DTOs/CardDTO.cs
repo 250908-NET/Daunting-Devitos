@@ -6,4 +6,5 @@ public class CardDTO
     public string Image { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
     public string Suit { get; set; } = string.Empty;
+    public bool IsFaceDown { get; set; } = false;
 }

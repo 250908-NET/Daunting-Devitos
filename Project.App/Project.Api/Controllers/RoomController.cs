@@ -2,8 +2,10 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Project.Api.DTOs;
+using Project.Api.Models.Games;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Controllers;
 
@@ -46,9 +48,9 @@ public class RoomController(
     [HttpGet("{id}")]
     public async Task<ActionResult<RoomDTO>> GetRoomById(Guid id)
     {
-        var room = await _roomService.GetRoomByIdAsync(id);
-        if (room == null)
-            throw new NotFoundException($"Room with ID {id} not found");
+        var room =
+            await _roomService.GetRoomByIdAsync(id)
+            ?? throw new NotFoundException($"Room with ID {id} not found");
         return Ok(room);
     }
 
@@ -56,9 +58,9 @@ public class RoomController(
     [HttpGet("host/{hostId}")]
     public async Task<ActionResult<RoomDTO>> GetRoomByHostId(Guid hostId)
     {
-        var room = await _roomService.GetRoomByHostIdAsync(hostId);
-        if (room == null)
-            throw new NotFoundException($"Room with host ID {hostId} not found");
+        var room =
+            await _roomService.GetRoomByHostIdAsync(hostId)
+            ?? throw new NotFoundException($"Room with host ID {hostId} not found");
         return Ok(room);
     }
 
@@ -107,9 +109,9 @@ public class RoomController(
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var room = await _roomService.UpdateRoomAsync(dto);
-        if (room == null)
-            throw new NotFoundException($"Room with ID {id} not found");
+        var room =
+            await _roomService.UpdateRoomAsync(dto)
+            ?? throw new NotFoundException($"Room with ID {id} not found");
 
         return Ok(room);
     }
@@ -242,9 +244,13 @@ public class RoomController(
             throw new BadRequestException("Message content cannot be empty.");
         }
 
-        string name = User.Identity?.Name ?? "Anonymous";
+        MessageEventData data = new()
+        {
+            Sender = User.Identity?.Name ?? "Anonymous",
+            Content = message.Content,
+        };
 
-        await _roomSSEService.BroadcastEventAsync(roomId, "message", $"{name}: {message.Content}");
+        await _roomSSEService.BroadcastEventAsync(roomId, RoomEventType.Message, data);
         return Ok();
     }
 

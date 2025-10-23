@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using Project.Api;
 using Project.Api.DTOs;
+using Project.Api.Models.Games; // Add this using directive for MessageEventData
 using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Project.Test.Helpers;
@@ -77,8 +78,15 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
 
         var messageContent = "Hello everyone!";
         var message = new MessageDTO(messageContent);
-        var expectedMessage = $"Anonymous: {messageContent}";
-        var expectedData = JsonSerializer.Serialize(expectedMessage);
+
+        // Update expectedData to serialize a MessageEventData object
+        var expectedMessageEventData = new MessageEventData
+        {
+            Sender = "Anonymous", // Assuming the controller sets this
+            Content = messageContent,
+            // Timestamp will be set by the service, so we can't assert an exact value.
+            // We'll deserialize and check properties instead of direct string comparison.
+        };
 
         // Act: Send a chat message
         var postResponse = await client.PostAsJsonAsync($"/api/room/{roomId}/chat", message);
@@ -89,7 +97,18 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
         Assert.Equal("event: message", eventLine);
 
         string dataLine = await reader.ReadLineAsync() ?? "No line received!";
-        Assert.Equal($"data: {expectedData}", dataLine);
+        Assert.StartsWith("data: ", dataLine); // Check prefix
+
+        // Deserialize the actual data received
+        var receivedDataJson = dataLine.Substring("data: ".Length);
+        var receivedMessageEventData = JsonSerializer.Deserialize<MessageEventData>(
+            receivedDataJson
+        );
+
+        Assert.NotNull(receivedMessageEventData);
+        Assert.Equal(expectedMessageEventData.Sender, receivedMessageEventData.Sender);
+        Assert.Equal(expectedMessageEventData.Content, receivedMessageEventData.Content);
+        Assert.NotEqual(default, receivedMessageEventData.Timestamp); // Ensure timestamp was set
 
         string blankLine = await reader.ReadLineAsync() ?? "No line received!";
         Assert.True(string.IsNullOrEmpty(blankLine));
@@ -112,8 +131,13 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
 
         var messageContent = "Group chat!";
         var message = new MessageDTO(messageContent);
-        var expectedMessage = $"Anonymous: {messageContent}";
-        var expectedData = JsonSerializer.Serialize(expectedMessage);
+
+        // Update expectedData to serialize a MessageEventData object
+        var expectedMessageEventData = new MessageEventData
+        {
+            Sender = "Anonymous",
+            Content = messageContent,
+        };
 
         // Act: Send a chat message
         var postResponse = await client1.PostAsJsonAsync($"/api/room/{roomId}/chat", message);
@@ -123,13 +147,25 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
         string eventLine1 = await reader1.ReadLineAsync() ?? "No line received!";
         Assert.Equal("event: message", eventLine1);
         string dataLine1 = await reader1.ReadLineAsync() ?? "No line received!";
-        Assert.Equal($"data: {expectedData}", dataLine1);
+        Assert.StartsWith("data: ", dataLine1);
+        var receivedMessageEventData1 = JsonSerializer.Deserialize<MessageEventData>(
+            dataLine1.Substring("data: ".Length)
+        );
+        Assert.NotNull(receivedMessageEventData1);
+        Assert.Equal(expectedMessageEventData.Sender, receivedMessageEventData1.Sender);
+        Assert.Equal(expectedMessageEventData.Content, receivedMessageEventData1.Content);
         await reader1.ReadLineAsync(); // Blank line
 
         string eventLine2 = await reader2.ReadLineAsync() ?? "No line received!";
         Assert.Equal("event: message", eventLine2);
         string dataLine2 = await reader2.ReadLineAsync() ?? "No line received!";
-        Assert.Equal($"data: {expectedData}", dataLine2);
+        Assert.StartsWith("data: ", dataLine2);
+        var receivedMessageEventData2 = JsonSerializer.Deserialize<MessageEventData>(
+            dataLine2.Substring("data: ".Length)
+        );
+        Assert.NotNull(receivedMessageEventData2);
+        Assert.Equal(expectedMessageEventData.Sender, receivedMessageEventData2.Sender);
+        Assert.Equal(expectedMessageEventData.Content, receivedMessageEventData2.Content);
         await reader2.ReadLineAsync(); // Blank line
 
         // Clean up
@@ -153,8 +189,13 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
 
         var messageContent = "Only for room 1!";
         var message = new MessageDTO(messageContent);
-        var expectedMessage = $"Anonymous: {messageContent}";
-        var expectedData = JsonSerializer.Serialize(expectedMessage);
+
+        // Update expectedData to serialize a MessageEventData object
+        var expectedMessageEventData = new MessageEventData
+        {
+            Sender = "Anonymous",
+            Content = messageContent,
+        };
 
         // Act: Send a chat message to room 1
         var postResponse = await client1.PostAsJsonAsync($"/api/room/{roomId1}/chat", message);
@@ -164,7 +205,13 @@ public class RoomSseIntegrationTests(WebApplicationFactory<Program> factory)
         string eventLine1 = await reader1.ReadLineAsync() ?? "No line received!";
         Assert.Equal("event: message", eventLine1);
         string dataLine1 = await reader1.ReadLineAsync() ?? "No line received!";
-        Assert.Equal($"data: {expectedData}", dataLine1);
+        Assert.StartsWith("data: ", dataLine1);
+        var receivedMessageEventData1 = JsonSerializer.Deserialize<MessageEventData>(
+            dataLine1.Substring("data: ".Length)
+        );
+        Assert.NotNull(receivedMessageEventData1);
+        Assert.Equal(expectedMessageEventData.Sender, receivedMessageEventData1.Sender);
+        Assert.Equal(expectedMessageEventData.Content, receivedMessageEventData1.Content);
         await reader1.ReadLineAsync(); // Blank line
 
         // Assert: Client in room 2 does NOT receive the event.

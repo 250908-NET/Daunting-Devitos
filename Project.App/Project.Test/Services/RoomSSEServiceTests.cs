@@ -1,7 +1,9 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Project.Api.Models.Games; // Add this using directive for IRoomEventData and concrete types
 using Project.Api.Services;
+using Project.Api.Utilities.Enums; // Add this using directive for RoomEventType
 
 namespace Project.Test.Services;
 
@@ -73,13 +75,18 @@ public class RoomSSEServiceTests
         // Allow connections to be established
         await Task.Delay(100);
 
-        var eventName = "player-joined";
-        var eventData = new { PlayerId = "player123", Name = "John Doe" };
+        // Use the new RoomEventType enum and PlayerJoinEventData DTO
+        var eventType = RoomEventType.PlayerJoined;
+        var eventData = new PlayerJoinEventData
+        {
+            PlayerId = Guid.NewGuid(),
+            PlayerName = "John Doe",
+        };
         var expectedPayload =
-            $"event: {eventName}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
+            $"event: {eventType.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
 
         // Act
-        await sseService.BroadcastEventAsync(roomId1, eventName, eventData);
+        await sseService.BroadcastEventAsync(roomId1, eventType, eventData);
 
         // Assert: Verify clients in room 1 received the event
         stream1.Position = 0;
@@ -125,13 +132,14 @@ public class RoomSSEServiceTests
         // Simulate one client disconnecting by disposing its response stream
         await stream2.DisposeAsync();
 
-        var eventName = "test-event";
-        var eventData = new { Message = "Hello" };
-        var expectedPayload =
-            $"event: {eventName}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
+        // Use the new RoomEventType enum and MessageEventData DTO
+        var eventType1 = RoomEventType.Message;
+        var eventData1 = new MessageEventData { Sender = "Test", Content = "Hello" };
+        var expectedPayload1 =
+            $"event: {eventType1.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData1)}\n\n";
 
         // Act: first broadcast
-        await sseService.BroadcastEventAsync(roomId, eventName, eventData);
+        await sseService.BroadcastEventAsync(roomId, eventType1, eventData1);
 
         // Assert: The open connection (stream1) received the event
         // Reset position to 0, then read all content
@@ -141,20 +149,21 @@ public class RoomSSEServiceTests
             // Skip the “: connected” line
             var _ = await reader1.ReadLineAsync();
             var payload1 = await reader1.ReadToEndAsync();
-            Assert.Equal(expectedPayload, payload1);
+            Assert.Equal(expectedPayload1, payload1);
         }
 
         // Mark current length (position for next read)
         long afterFirstLength = stream1.Length;
 
         // Act: second broadcast
-        var secondEventData = new { Message = "Still here?" };
+        var eventType2 = RoomEventType.Message;
+        var eventData2 = new MessageEventData { Sender = "Test", Content = "Still here?" };
         var expectedPayload2 =
-            $"event: second-event\ndata: {JsonSerializer.Serialize(secondEventData)}\n\n";
-        await sseService.BroadcastEventAsync(roomId, "second-event", secondEventData);
+            $"event: {eventType2.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData2)}\n\n";
+        await sseService.BroadcastEventAsync(roomId, eventType2, eventData2);
 
         // Assert: only the open connection receives the second event
-        // Set position to the book‑marked point so we only read the newly written part
+        // Set position to the book-marked point so we only read the newly written part
         stream1.Position = afterFirstLength;
         using (var reader2 = new StreamReader(stream1, Encoding.UTF8, leaveOpen: true))
         {
@@ -175,9 +184,13 @@ public class RoomSSEServiceTests
         var sseService = new RoomSSEService();
         var roomId = Guid.NewGuid(); // A room with no connections
 
+        // Use the new RoomEventType enum and MessageEventData DTO
+        var eventType = RoomEventType.Message;
+        var eventData = new MessageEventData { Sender = "Test", Content = "empty" };
+
         // Act
         var exception = await Record.ExceptionAsync(() =>
-            sseService.BroadcastEventAsync(roomId, "any-event", new { Data = "empty" })
+            sseService.BroadcastEventAsync(roomId, eventType, eventData)
         );
 
         // Assert
