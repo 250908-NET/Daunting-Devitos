@@ -44,7 +44,7 @@ public interface IDeckApiService
     Return all cards from all piles back to the main deck and shuffles deck.
     Returns true if successful.
     */
-    Task<bool> ReturnAllCardsToDeck(string deckId);
+    Task<bool> ReturnAllCardsToDeck(string deckId, bool shuffle = true);
 
     /// <summary>
     /// Calls Api to add card to specified hand. If hand does not exist, will create a hand with the given handName.

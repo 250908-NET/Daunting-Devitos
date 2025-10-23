@@ -249,9 +249,9 @@ public class RoomService(
                 {
                     CurrentStage = new BlackjackBettingStage(
                         DateTimeOffset.UtcNow + config.BettingTimeLimit,
-                        new Dictionary<Guid, long>()
+                        []
                     ),
-                    DealerHand = [],
+                    DealerHand = "",
                 };
                 initialGameState = JsonSerializer.Serialize(blackjackState);
 

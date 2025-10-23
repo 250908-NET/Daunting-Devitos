@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Project.Api.Repositories.Interface;
+using Project.Api.Services.Interface;
 
 namespace Project.Api.Models;
 

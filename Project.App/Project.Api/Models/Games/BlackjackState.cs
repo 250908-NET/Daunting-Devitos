@@ -41,3 +41,28 @@ public record BlackjackFinishRoundStage : BlackjackStage;
 
 // teardown, close room
 public record BlackjackTeardownStage : BlackjackStage;
+
+public static class BlackjackStateExtensions
+{
+    /// <summary>
+    /// Resets the deadline of a betting stage to the current time plus the given duration.
+    /// </summary>
+    public static BlackjackBettingStage ResetDeadline(
+        this BlackjackBettingStage stage,
+        TimeSpan duration
+    )
+    {
+        return stage with { Deadline = DateTimeOffset.UtcNow + duration };
+    }
+
+    /// <summary>
+    /// Resets the deadline of a player action stage to the current time plus the given duration.
+    /// </summary>
+    public static BlackjackPlayerActionStage ResetDeadline(
+        this BlackjackPlayerActionStage stage,
+        TimeSpan duration
+    )
+    {
+        return stage with { Deadline = DateTimeOffset.UtcNow + duration };
+    }
+}

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Project.Api.DTOs;
 using Project.Api.Models;
@@ -7,6 +8,7 @@ using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
 using Project.Api.Utilities.Enums;
 
 namespace Project.Test.Tests.Services;
@@ -17,6 +19,7 @@ public class BlackjackServiceTest
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
     private readonly Mock<IHandRepository> _handRepositoryMock;
     private readonly Mock<IDeckApiService> _deckApiServiceMock;
+    private readonly Mock<IRoomSSEService> _roomSSEServiceMock;
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
@@ -25,13 +28,16 @@ public class BlackjackServiceTest
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
         _handRepositoryMock = new Mock<IHandRepository>();
         _deckApiServiceMock = new Mock<IDeckApiService>();
+        _roomSSEServiceMock = new Mock<IRoomSSEService>();
         // Mocking IUserRepository is not needed for the betting action logic
         _blackjackService = new BlackjackService(
             _roomRepositoryMock.Object,
             _roomPlayerRepositoryMock.Object,
             new Mock<IUserRepository>().Object,
             _handRepositoryMock.Object,
-            _deckApiServiceMock.Object
+            _deckApiServiceMock.Object,
+            _roomSSEServiceMock.Object,
+            new Mock<ILogger<BlackjackService>>().Object
         );
     }
 
@@ -107,14 +113,29 @@ public class BlackjackServiceTest
         var actingPlayerId = Guid.NewGuid();
         var otherPlayerId = Guid.NewGuid();
         var betAmount = 100L;
+        var deckId = "test_deck_id";
 
         var actingPlayer = new RoomPlayer
         {
             Id = actingPlayerId,
+            UserId = actingPlayerId, // Ensure UserId is set for GetByRoomIdAndUserIdAsync
             Balance = 1000,
             Status = Status.Away,
         };
-        var otherPlayer = new RoomPlayer { Id = otherPlayerId, Balance = 1000 };
+        var otherPlayer = new RoomPlayer
+        {
+            Id = otherPlayerId,
+            UserId = otherPlayerId, // Ensure UserId is set
+            Balance = 1000,
+        };
+
+        var room = new Room
+        {
+            Id = roomId,
+            DeckId = deckId,
+            GameMode = GameModes.Blackjack,
+            GameState = "",
+        };
 
         var bettingStage = new BlackjackBettingStage(
             DateTimeOffset.UtcNow.AddMinutes(-1),
@@ -133,6 +154,32 @@ public class BlackjackServiceTest
         _roomPlayerRepositoryMock
             .Setup(r => r.GetByIdAsync(otherPlayer.Id))
             .ReturnsAsync(otherPlayer);
+        _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room); // Add this line
+        _deckApiServiceMock
+            .Setup(d => d.DrawCards(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(
+                [
+                    new()
+                    {
+                        Code = "C1",
+                        Suit = "CLUBS",
+                        Value = "ACE",
+                    },
+                ]
+            );
+        _handRepositoryMock
+            .Setup(h => h.GetHandsByRoomIdAsync(roomId))
+            .ReturnsAsync(
+                [
+                    new Hand
+                    {
+                        Id = Guid.NewGuid(),
+                        RoomPlayerId = actingPlayerId,
+                        Order = 0,
+                        Bet = betAmount,
+                    },
+                ]
+            );
 
         // Act
         await _blackjackService.PerformActionAsync(
@@ -175,7 +222,11 @@ public class BlackjackServiceTest
         var roomId = Guid.NewGuid();
         var gameState = new BlackjackState
         {
-            CurrentStage = new BlackjackPlayerActionStage(DateTimeOffset.UtcNow.AddMinutes(1), 0),
+            CurrentStage = new BlackjackPlayerActionStage(
+                DateTimeOffset.UtcNow.AddMinutes(1),
+                0,
+                0
+            ),
         };
         var gameStateString = JsonSerializer.Serialize(gameState);
 

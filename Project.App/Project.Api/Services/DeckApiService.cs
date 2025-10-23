@@ -126,9 +126,9 @@ public class DeckApiService : IDeckApiService
     /// Return all cards from all piles back to the main deck.
     /// </summary>
     /// <returns>true if successful</returns>
-    public async Task<bool> ReturnAllCardsToDeck(string deckId)
+    public async Task<bool> ReturnAllCardsToDeck(string deckId, bool shuffle = true)
     {
-        string url = $"{BASE_API_URL}/deck/{deckId}/return/";
+        string url = $"{BASE_API_URL}/deck/{deckId}/{(shuffle ? "shuffle" : "return")}/";
 
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)

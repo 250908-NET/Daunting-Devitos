@@ -26,7 +26,7 @@ public class RoomPlayer
 
     public Role Role { get; set; }
 
-    public Status Status { get; set; }
+    public Status Status { get; set; } = Status.Active;
 
     [Required]
     public long Balance { get; set; }

@@ -7,7 +7,8 @@ namespace Project.Api.DTOs
         public required Guid RoomPlayerId { get; set; }
 
         public required int Order { get; set; }
+        public int HandNumber { get; set; } = 0;
 
-        public required int Bet { get; set; }
+        public required long Bet { get; set; }
     }
 }
