@@ -36,7 +36,6 @@ public class Room
     public int MaxPlayers { get; set; }
 
     public int MinPlayers { get; set; }
-
     public string? DeckId { get; set; } = string.Empty;
 
     public int Round { get; set; }

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Project.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class removedCardJSON : Migration
+    public partial class intialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -43,7 +43,7 @@ namespace Project.Api.Migrations
                     Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     MaxPlayers = table.Column<int>(type: "int", nullable: false),
                     MinPlayers = table.Column<int>(type: "int", nullable: false),
-                    DeckId = table.Column<int>(type: "int", nullable: false),
+                    DeckId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Round = table.Column<int>(type: "int", nullable: false),
                     State = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     RowVersion = table.Column<byte[]>(type: "rowversion", rowVersion: true, nullable: false)
@@ -114,9 +114,10 @@ namespace Project.Api.Migrations
                 column: "RoomPlayerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RoomPlayers_RoomId",
+                name: "IX_RoomPlayer_RoomId_UserId_Unique",
                 table: "RoomPlayers",
-                column: "RoomId");
+                columns: new[] { "RoomId", "UserId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_RoomPlayers_UserId",
@@ -127,6 +128,12 @@ namespace Project.Api.Migrations
                 name: "IX_Rooms_HostId",
                 table: "Rooms",
                 column: "HostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
         }
 
         /// <inheritdoc />

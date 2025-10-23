@@ -12,8 +12,8 @@ using Project.Api.Data;
 namespace Project.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251022175547_changeDeckId")]
-    partial class changeDeckId
+    [Migration("20251023001802_intialCreate")]
+    partial class intialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,10 +33,6 @@ namespace Project.Api.Migrations
 
                     b.Property<int>("Bet")
                         .HasColumnType("int");
-
-                    b.Property<string>("CardsJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Order")
                         .HasColumnType("int");
@@ -61,7 +57,6 @@ namespace Project.Api.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("DeckId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
@@ -148,9 +143,11 @@ namespace Project.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RoomId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("RoomId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RoomPlayer_RoomId_UserId_Unique");
 
                     b.ToTable("RoomPlayers");
                 });
@@ -179,6 +176,9 @@ namespace Project.Api.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
