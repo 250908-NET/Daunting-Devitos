@@ -8,6 +8,7 @@ using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities.Middleware;
 using Serilog;
+using Project.Api.Infrastructure;
 
 namespace Project.Api;
 
@@ -42,6 +43,11 @@ public class Program
         builder.Services.AddOpenApi();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+
+        //Infrastructure -   add concurrency exception filter globally///added here
+        // Add exception filter to handle concurrency exceptions globally
+        builder.Services.AddControllers(o =>{
+        o.Filters.Add<ConcurrencyExceptionFilter>();});
 
         var app = builder.Build();
 
