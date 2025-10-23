@@ -20,6 +20,12 @@ namespace Project.Api.Repositories.Interface
         // Get all hands by a user in a room
         Task<List<Hand>> GetHandsByUserIdAsync(Guid roomId, Guid userId);
 
+        /// <summary>
+        /// Get a hand by room ID, player order, and hand order.
+        /// </summary>
+        /// <throws>NotFoundException no hand is found.</throws>
+        Task<Hand> GetHandByRoomOrderAsync(Guid roomId, int playerOrder, int handOrder);
+
         // Create a new hand
         Task<Hand> CreateHandAsync(Hand hand);
 

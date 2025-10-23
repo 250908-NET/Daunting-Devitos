@@ -73,7 +73,9 @@ public class BlackjackService(
     IRoomPlayerRepository roomPlayerRepository,
     IUserRepository userRepository,
     IHandRepository handRepository,
-    IDeckApiService deckApiService
+    IDeckApiService deckApiService,
+    IRoomSSEService roomSSEService,
+    ILogger<BlackjackService> logger
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
@@ -81,6 +83,8 @@ public class BlackjackService(
     private readonly IUserRepository _userRepository = userRepository;
     private readonly IHandRepository _handRepository = handRepository;
     private readonly IDeckApiService _deckApiService = deckApiService;
+    private readonly IRoomSSEService _roomSSEService = roomSSEService;
+    private readonly ILogger<BlackjackService> _logger = logger;
 
     private BlackjackConfig _config = new();
     public BlackjackConfig Config
@@ -109,6 +113,31 @@ public class BlackjackService(
             _ => false,
         };
 
+    public async Task SetupGameAsync(Guid roomId)
+    {
+        // create initial game state
+        BlackjackState initialState = new()
+        {
+            CurrentStage = new BlackjackBettingStage(
+                DateTimeOffset.UtcNow + _config.BettingTimeLimit,
+                []
+            ),
+        };
+
+        // create new deck
+        string deckId = await _deckApiService.CreateDeck();
+
+        // save to room
+        Room room =
+            await _roomRepository.GetByIdAsync(roomId)
+            ?? throw new NotFoundException($"Room {roomId} not found.");
+
+        room.DeckId = deckId;
+        room.GameState = JsonSerializer.Serialize(initialState);
+
+        await _roomRepository.UpdateAsync(room);
+    }
+
     public async Task PerformActionAsync(
         Guid roomId,
         Guid playerId,
@@ -136,227 +165,378 @@ public class BlackjackService(
         switch (actionDTO)
         {
             case BetAction betAction:
-                // check if player has enough chips
-                if (player.Balance < betAction.Amount)
-                {
-                    throw new BadRequestException(
-                        $"Player {playerId} does not have enough chips to bet {betAction.Amount}."
-                    );
-                }
-
-                BlackjackBettingStage stage = (BlackjackBettingStage)state.CurrentStage;
-
-                // set bet in gamestate
-                stage.Bets[player.Id] = betAction.Amount;
-                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
-
-                // update player status
-                player.Status = Status.Active;
-                await _roomPlayerRepository.UpdateAsync(player);
+                await ProcessBetAsync(state, roomId, player, betAction.Amount);
 
                 // if not past deadline, do not move to next stage
-                if (DateTime.UtcNow < stage.Deadline)
+                if (DateTime.UtcNow < ((BlackjackBettingStage)state.CurrentStage).Deadline)
                 {
                     break;
                 }
 
-                // time is up, process all bets
-                foreach ((Guid better, long bet) in stage.Bets)
-                {
-                    try
-                    {
-                        await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
-                    }
-                    catch (NotFoundException)
-                    {
-                        // a bet was recorded for a player who no longer exists?
-                        throw new InternalServerException(
-                            $"Could not find player {better} to process their bet."
-                        );
-                    }
-                }
-
-                // move to next stage
-
-                state.CurrentStage = new BlackjackPlayerActionStage(
-                    DateTimeOffset.UtcNow + _config.TurnTimeLimit,
-                    0
-                );
-                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
-
-                // TODO: dealing stage
-
-                // TODO: move to player action stage
-
+                // time is up, start the round
+                await StartRoundAsync(state, roomId);
                 break;
-            case HitAction hitAction:
-                // Fetch player's hands
-                var hands =
-                    await _handRepository.GetHandsByRoomIdAsync(player.Id)
-                    ?? throw new BadRequestException("No hand found for this player.");
+            case HitAction:
+                bool busted = await DoHitAsync(state, roomId, player);
 
-                var hand =
-                    hands.FirstOrDefault()
-                    ?? throw new BadRequestException("No hand found for this player.");
-
-                // Retrieve deck ID from room configuration or state
-                var room =
-                    await _roomRepository.GetByIdAsync(roomId)
-                    ?? throw new BadRequestException("Room not found.");
-
-                // Draw one card and add it to player's hand
-                var drawnCards = await _deckApiService.DrawCards(
-                    room.DeckId?.ToString()
-                        ?? throw new InternalServerException($"Deck for room {roomId} not found."),
-                    hand.Id.ToString(),
-                    1
-                );
-
-                // --- Calculate total value and check for bust ---
-                int totalValue = 0;
-                int aceCount = 0;
-
-                foreach (var card in drawnCards)
+                if (busted)
                 {
-                    switch (card.Value.ToUpper())
-                    {
-                        case "ACE":
-                            aceCount++;
-                            totalValue += 11;
-                            break;
-                        case "KING":
-                        case "QUEEN":
-                        case "JACK":
-                            totalValue += 10;
-                            break;
-                        default:
-                            //Number cards (2–10) → handled by:
-                            if (int.TryParse(card.Value, out int val))
-                                totalValue += val;
-                            break;
-                    }
-                }
-
-                while (totalValue > 21 && aceCount > 0)
-                {
-                    totalValue -= 10;
-                    aceCount--;
-                }
-
-                if (totalValue > 21)
-                {
-                    await _roomPlayerRepository.UpdateAsync(player);
                     await NextHandOrFinishRoundAsync(state, roomId);
                 }
-                await NextHandOrFinishRoundAsync(state, roomId);
-                break;
-
-            case StandAction standAction:
-                // next player or next stage
-                await NextHandOrFinishRoundAsync(state, roomId);
-                break;
-            case DoubleAction doubleAction:
-                // can only be done on the player's first turn!
-
-                // check if player has enough chips to double their bet
-
-                // double player's bet (deduct from balance and update gamestate)
-
-                // draw one card
-
-                // next player or next stage
-                await NextHandOrFinishRoundAsync(state, roomId);
-                throw new NotImplementedException();
-            case SplitAction splitAction:
-                // can only be done on the player's first turn!
-
-                // check if player has enough chips to do the new bet
-
-                // deal new hand (2 cards)
-
-                // next turn should be player's first hand
-                // can only be done on the player's first turn!
-
-                // check if player has enough chips to do the new bet
-
-                // deal new hand (2 cards)
-
-                // next turn should be player's first hand
-                throw new NotImplementedException();
-            case SurrenderAction surrenderAction:
-                // not allowed after splitting!
-                //   maybe check if player only has one hand?
-
-                // refund half of player's bet (deduct from balance and update gamestate)
-
-                // next player or next stage
-                await NextHandOrFinishRoundAsync(state, roomId);
-                // not allowed after splitting!
-                //   maybe check if player only has one hand?
-
-                // refund half of player's bet (deduct from balance and update gamestate)
-
-                // next player or next stage
-                await NextHandOrFinishRoundAsync(state, roomId);
-                throw new NotImplementedException();
-            case HurryUpAction hurryUpAction:
-                if (state.CurrentStage is BlackjackBettingStage bettingStage)
+                else
                 {
-                    // Check if deadline has passed
-                    if (DateTime.UtcNow < bettingStage.Deadline)
-                    {
-                        throw new BadRequestException(
-                            "Cannot hurry up - betting deadline has not passed yet."
-                        );
-                    }
-
-                    // Process all bets
-                    foreach ((Guid better, long bet) in bettingStage.Bets)
-                    {
-                        try
-                        {
-                            await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
-                        }
-                        catch (NotFoundException)
-                        {
-                            // a bet was recorded for a player who no longer exists?
-                            throw new InternalServerException(
-                                $"Could not find player {better} to process their bet."
-                            );
-                        }
-                    }
-
-                    // Move to next stage
+                    // stay on the same player's turn, but reset the deadline
                     state.CurrentStage = new BlackjackPlayerActionStage(
                         DateTimeOffset.UtcNow + _config.TurnTimeLimit,
-                        0
+                        ((BlackjackPlayerActionStage)state.CurrentStage).PlayerIndex,
+                        ((BlackjackPlayerActionStage)state.CurrentStage).HandIndex
                     );
                     await _roomRepository.UpdateGameStateAsync(
                         roomId,
                         JsonSerializer.Serialize(state)
                     );
-
-                    // TODO: dealing stage
-
-                    // TODO: move to player action stage
                 }
-                else if (state.CurrentStage is BlackjackPlayerActionStage playerActionStage)
-                {
-                    // Check if deadline has passed
-                    if (DateTime.UtcNow < playerActionStage.Deadline)
-                    {
-                        throw new BadRequestException(
-                            "Cannot hurry up - player action deadline has not passed yet."
-                        );
-                    }
+                break;
 
-                    // Move to next player or finish round
-                    await NextHandOrFinishRoundAsync(state, roomId);
+            case StandAction:
+                // do nothing :)
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state, roomId);
+                break;
+            case DoubleAction:
+                await DoDoubleAsync(state, roomId, player);
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state, roomId);
+                throw new NotImplementedException();
+            case SplitAction splitAction:
+                await DoSplitAsync(state, roomId, player, splitAction.Amount);
+
+                // stay on the same player's turn, but reset the deadline
+                state.CurrentStage = new BlackjackPlayerActionStage(
+                    DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                    ((BlackjackPlayerActionStage)state.CurrentStage).PlayerIndex,
+                    ((BlackjackPlayerActionStage)state.CurrentStage).HandIndex
+                );
+                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+                break;
+            case SurrenderAction surrenderAction:
+                await DoSurrenderAsync(state, roomId, player);
+
+                // next player or next stage
+                await NextHandOrFinishRoundAsync(state, roomId);
+                break;
+            case HurryUpAction hurryUpAction:
+                switch (state.CurrentStage)
+                {
+                    case BlackjackBettingStage:
+                        // start the round
+                        await StartRoundAsync(state, roomId);
+                        break;
+                    case BlackjackPlayerActionStage:
+                        // act as if the player stood
+                        await NextHandOrFinishRoundAsync(state, roomId);
+                        break;
+                    default:
+                        throw new BadRequestException("Nothing to hurry in the current stage.");
                 }
                 break;
             default:
-                throw new NotImplementedException();
+                throw new BadRequestException("Unrecognized action type.");
         }
+    }
+
+    /// <summary>
+    /// Process a player's bet during the betting stage.
+    /// </summary>
+    /// <exception cref="BadRequestException">Thrown if the player does not have enough chips to bet.</exception>
+    private async Task ProcessBetAsync(
+        BlackjackState state,
+        Guid roomId,
+        RoomPlayer player,
+        long bet
+    )
+    {
+        // check if player has enough chips
+        if (player.Balance < bet)
+        {
+            throw new BadRequestException(
+                $"Player {player.UserId} does not have enough chips to bet {bet}."
+            );
+        }
+
+        BlackjackBettingStage stage = (BlackjackBettingStage)state.CurrentStage;
+
+        // set bet in gamestate
+        stage.Bets[player.Id] = bet;
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+
+        // update player status
+        player.Status = Status.Active;
+        await _roomPlayerRepository.UpdateAsync(player);
+    }
+
+    /// <summary>
+    /// Start the round after betting is complete.
+    /// Deduct bets from player balances and move to dealing stage.
+    /// </summary>
+    private async Task StartRoundAsync(BlackjackState state, Guid roomId)
+    {
+        // move to dealing stage
+        state.CurrentStage = new BlackjackDealingStage();
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+
+        // get bets
+        Dictionary<Guid, long> bets = ((BlackjackBettingStage)state.CurrentStage).Bets;
+
+        // deduct bets from player balances and initialize hands
+        int order = 0;
+        foreach ((Guid better, long bet) in bets)
+        {
+            try
+            {
+                await _roomPlayerRepository.UpdatePlayerBalanceAsync(better, -bet);
+
+                await _handRepository.CreateHandAsync(
+                    new Hand
+                    {
+                        RoomPlayerId = better,
+                        Order = order++,
+                        Bet = bet,
+                    }
+                );
+            }
+            catch (NotFoundException)
+            {
+                // a bet was recorded for a player who no longer exists?
+                // should not happen, but just in case
+                throw new InternalServerException(
+                    $"Could not find player {better} to process their bet."
+                );
+            }
+        }
+
+        // get deck ID
+        Room room =
+            await _roomRepository.GetByIdAsync(roomId)
+            ?? throw new NotFoundException($"Room {roomId} not found.");
+        if (room.DeckId == null)
+        {
+            _logger.LogError(
+                "Warning: Room {RoomId} has no deck ID. Attempting to create a new one...",
+                roomId
+            );
+
+            // create new deck
+            room.DeckId = await _deckApiService.CreateDeck();
+            await _roomRepository.UpdateAsync(room);
+
+            _logger.LogInformation(
+                "Successfully created new deck {DeckId} for room {RoomId}!",
+                room.DeckId,
+                roomId
+            );
+        }
+
+        // deal initial cards (2 to each player, 2 to dealer, one at a time)
+        string deckId = room.DeckId.ToString();
+        List<Hand> hands = await _handRepository.GetHandsByRoomIdAsync(roomId);
+
+        if (hands.Count == 0)
+        {
+            throw new InternalServerException($"No hands found for room {roomId}.");
+        }
+
+        // one card at a time, deal 2 rounds to players and dealer
+        for (int i = 0; i < 2; i++)
+        {
+            // deal one card to each hand in order
+            foreach (Hand hand in hands.OrderBy(h => h.Order))
+            {
+                await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+            }
+
+            // deal to dealer
+            await _deckApiService.DrawCards(deckId, "dealer", 1);
+        }
+
+        // move to player action stage
+        state.CurrentStage = new BlackjackPlayerActionStage(
+            DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+            0,
+            0
+        );
+        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+    }
+
+    private async Task<(BlackjackPlayerActionStage, Hand, string)> InitializePlayerActionAsync(
+        BlackjackState state,
+        Guid roomId,
+        RoomPlayer player
+    )
+    {
+        BlackjackPlayerActionStage stage =
+            state.CurrentStage as BlackjackPlayerActionStage
+            ?? throw new InternalServerException("Current stage is not player action stage.");
+
+        Hand hand = await _handRepository.GetHandByRoomOrderAsync(
+            roomId,
+            stage.PlayerIndex,
+            stage.HandIndex
+        );
+
+        // make sure player corresponds to the current turn's player
+        if (hand.RoomPlayerId != player.Id)
+        {
+            throw new BadRequestException("It is not your turn.");
+        }
+
+        Room room =
+            await _roomRepository.GetByIdAsync(roomId)
+            ?? throw new NotFoundException($"Room {roomId} not found.");
+
+        return (
+            stage,
+            hand,
+            room.DeckId ?? throw new InternalServerException($"Room {roomId} has no deck ID.")
+        );
+    }
+
+    /// <summary>
+    /// Process a player's "hit" action during their turn.
+    /// </summary>
+    /// <returns>true if player busted</returns>
+    private async Task<bool> DoHitAsync(BlackjackState state, Guid roomId, RoomPlayer player)
+    {
+        (BlackjackPlayerActionStage stage, Hand hand, string deckId) =
+            await InitializePlayerActionAsync(state, roomId, player);
+
+        // draw one card and add it to player's hand
+        List<CardDTO> handCards = await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+
+        // check if player busted
+        int totalValue = CalculateHandValue(handCards);
+
+        return totalValue > 21;
+    }
+
+    /// <summary>
+    /// Process a player's "double" action during their turn, doubling their bet and drawing one card.
+    /// </summary>
+    /// <remarks>Should end the player's turn.</remarks>
+    private async Task DoDoubleAsync(BlackjackState state, Guid roomId, RoomPlayer player)
+    {
+        (BlackjackPlayerActionStage stage, Hand hand, string deckId) =
+            await InitializePlayerActionAsync(state, roomId, player);
+
+        // can only be done on the player's first turn!
+        // check if player only has two cards in hand and is on their first hand
+        List<CardDTO> handCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+
+        if (stage.HandIndex != 0 || handCards.Count > 2)
+        {
+            throw new BadRequestException("Double can only be done on the player's first turn.");
+        }
+
+        // check if player has enough chips to double their bet
+        if (player.Balance < hand.Bet)
+        {
+            throw new BadRequestException(
+                $"Player {player.UserId} does not have enough chips to double their bet."
+            );
+        }
+
+        // double player's bet (deduct from balance and update gamestate)
+        await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, -hand.Bet);
+        hand.Bet *= 2;
+        await _handRepository.UpdateHandAsync(hand.Id, hand);
+
+        // draw one card and add it to player's hand
+        await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+    }
+
+    /// <summary>
+    /// Process a player's "split" action during their turn, splitting their hand into two hands.
+    /// </summary>
+    /// <remarks>Next turn should be the player's first hand.</remarks>
+    private async Task DoSplitAsync(
+        BlackjackState state,
+        Guid roomId,
+        RoomPlayer player,
+        long amount
+    )
+    {
+        (BlackjackPlayerActionStage stage, Hand hand, string deckId) =
+            await InitializePlayerActionAsync(state, roomId, player);
+
+        // check if player has enough chips to do the new bet
+        if (player.Balance < amount)
+        {
+            throw new BadRequestException(
+                $"Player {player.UserId} does not have enough chips to split their bet with {amount}."
+            );
+        }
+
+        // can only be done on the player's first turn!
+        // check if player only has two cards in hand and is on their first hand
+        List<CardDTO> handCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+
+        if (stage.HandIndex != 0 || handCards.Count != 2)
+        {
+            throw new BadRequestException("Double can only be done on the player's first turn.");
+        }
+
+        // check if both cards are the same value
+        if (handCards[0].Value != handCards[1].Value)
+        {
+            throw new BadRequestException("Can only split if both cards have the same value.");
+        }
+
+        // create new hand with second card
+        await _handRepository.CreateHandAsync(
+            new()
+            {
+                RoomPlayerId = hand.RoomPlayerId,
+                Order = hand.Order,
+                HandNumber = hand.HandNumber + 1,
+                Bet = amount,
+            }
+        );
+        Hand newHand = await _handRepository.GetHandByRoomOrderAsync(
+            roomId,
+            hand.Order,
+            hand.HandNumber + 1
+        );
+
+        // move second card to new hand
+        CardDTO cardToMove = handCards[1];
+        await _deckApiService.RemoveFromHand(deckId, $"hand-{hand.Id}", cardToMove.Code);
+        await _deckApiService.AddToHand(deckId, $"hand-{newHand.Id}", cardToMove.Code);
+
+        // draw one card for each hand
+        await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        await _deckApiService.DrawCards(deckId, $"hand-{newHand.Id}", 1);
+
+        // deduct bet from player's balance
+        await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, -amount);
+    }
+
+    /// <summary>
+    /// Process a player's "surrender" action during their turn, forfeiting half their bet and ending their turn.
+    /// </summary>
+    private async Task DoSurrenderAsync(BlackjackState state, Guid roomId, RoomPlayer player)
+    {
+        // not allowed after splitting!
+        // check if player only has one hand
+        List<Hand> hands = await _handRepository.GetHandsByUserIdAsync(roomId, player.Id);
+        if (hands.Count > 1)
+        {
+            throw new BadRequestException("Surrender is not allowed after splitting.");
+        }
+
+        // refund half of player's bet (add to balance and update gamestate)
+        await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, hands[0].Bet / 2);
     }
 
     /// <summary>
@@ -451,5 +631,40 @@ public class BlackjackService(
         state.DealerHand = [];
 
         await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+    }
+
+    static int CalculateHandValue(List<CardDTO> hand, int target = 21)
+    {
+        int totalValue = 0;
+        int aceCount = 0;
+
+        foreach (CardDTO card in hand)
+        {
+            switch (card.Value.ToUpper())
+            {
+                case "ACE":
+                    aceCount++;
+                    totalValue += 11;
+                    break;
+                case "KING":
+                case "QUEEN":
+                case "JACK":
+                    totalValue += 10;
+                    break;
+                default:
+                    //Number cards (2–10) → handled by:
+                    if (int.TryParse(card.Value, out int val))
+                        totalValue += val;
+                    break;
+            }
+        }
+
+        while (totalValue > target && aceCount > 0)
+        {
+            totalValue -= 10;
+            aceCount--;
+        }
+
+        return totalValue;
     }
 }

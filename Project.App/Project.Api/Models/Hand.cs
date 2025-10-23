@@ -11,9 +11,11 @@ public class Hand
 
     public Guid RoomPlayerId { get; set; }
 
-    public int Order { get; set; }
+    public required int Order { get; set; } // order of the player in the game
 
-    public int Bet { get; set; }
+    public int HandNumber { get; set; } = 0; // number of the hand for the player
+
+    public long Bet { get; set; }
 
     [ForeignKey("RoomPlayerId")]
     public virtual RoomPlayer? RoomPlayer { get; set; }

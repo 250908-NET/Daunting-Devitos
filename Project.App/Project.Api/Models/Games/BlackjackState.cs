@@ -4,7 +4,8 @@ namespace Project.Api.Models.Games;
 
 public record BlackjackState : GameState<BlackjackStage>
 {
-    public List<object> DealerHand { get; set; } = [];
+    public string DealerHand { get; set; } = "";
+    public Dictionary<Guid, long> Bets { get; set; } = [];
 }
 
 [JsonDerivedType(typeof(BlackjackInitStage), typeDiscriminator: "init")]
@@ -32,7 +33,8 @@ public record BlackjackDealingStage : BlackjackStage;
 
 // player turn
 // TODO: figure out how turn order will work
-public record BlackjackPlayerActionStage(DateTimeOffset Deadline, int Index) : BlackjackStage;
+public record BlackjackPlayerActionStage(DateTimeOffset Deadline, int PlayerIndex, int HandIndex)
+    : BlackjackStage;
 
 // dealer turn and distribute winnings
 public record BlackjackFinishRoundStage : BlackjackStage;

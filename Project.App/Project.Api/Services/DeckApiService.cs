@@ -87,7 +87,7 @@ public class DeckApiService : IDeckApiService
     /// Player draws specified number of cards, count, from specified deck.
     /// Draws one card by default.
     /// </summary>
-    /// <returns>true if successful</returns>
+    /// <returns>the resulting contents of the player’s hand</returns>
     public async Task<List<CardDTO>> DrawCards(string deckId, string handName, int count = 1)
     {
         // enforce non-negative count
@@ -139,10 +139,10 @@ public class DeckApiService : IDeckApiService
     }
 
     /// <summary>
-    /// Calls Api to add card to specified hand. If hand does not exist, will create a hand with give handName.
+    /// Calls Api to add card to specified hand. If hand does not exist, will create a hand with the given handName.
     /// </summary>
     /// <returns>true if successful</returns>
-    private async Task<bool> AddToHand(string deckId, string handName, string cardCodes)
+    public async Task<bool> AddToHand(string deckId, string handName, string cardCodes)
     {
         string addToPileUrl =
             $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/add/?cards={cardCodes}";
@@ -155,10 +155,26 @@ public class DeckApiService : IDeckApiService
     }
 
     /// <summary>
+    /// Calls Api to remove cards from specified hand.
+    /// </summary>
+    /// <returns>true if successful</returns>
+    public async Task<bool> RemoveFromHand(string deckId, string handName, string cardCodes)
+    {
+        string removeFromPileUrl =
+            $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/draw/?cards={cardCodes}";
+        var removeResponse = await _httpClient.GetAsync(removeFromPileUrl);
+        if (!removeResponse.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException("Failed to remove cards from hand.");
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Calls Api to list cards in specified pile from specified deck.
     /// </summary>
     /// <returns>A list of card DTOs</returns>
-    private async Task<List<CardDTO>> ListHand(string deckId, string handName)
+    public async Task<List<CardDTO>> ListHand(string deckId, string handName)
     {
         string listPileUrl = $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/list/";
         var listResponse = await _httpClient.GetAsync(listPileUrl);

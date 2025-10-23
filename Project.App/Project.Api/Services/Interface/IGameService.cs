@@ -17,6 +17,11 @@ public interface IGameService<TState, TConfig>
     Task<TState> GetGameStateAsync(Guid gameId);
 
     /// <summary>
+    /// Sets up the game with initial state.
+    /// </summary>
+    Task SetupGameAsync(Guid gameId);
+
+    /// <summary>
     /// Performs a user action on the game, if valid, then updates the game state.
     /// Each game implementation provides their own main loop logic implementation, instead of being restricted to a
     /// specific structure.

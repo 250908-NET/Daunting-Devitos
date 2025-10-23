@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
+using Project.Api.Utilities;
 
 namespace Project.Api.Repositories;
 
@@ -69,6 +71,27 @@ public class HandRepository : IHandRepository
             .ToListAsync();
         // return hands or throw exception if not found
         return (hands == null || hands.Count == 0) ? throw new Exception("No hands found") : hands;
+    }
+
+    public async Task<Hand> GetHandByRoomOrderAsync(Guid roomId, int playerOrder, int handOrder)
+    {
+        // Validate roomId
+        if (roomId == Guid.Empty)
+        {
+            throw new ArgumentException("Invalid roomId");
+        }
+
+        // Retrieve the hand from the database
+        Hand? hand = await _context
+            .Hands.Include(h => h.RoomPlayer)
+            .FirstOrDefaultAsync(h =>
+                h.RoomPlayer != null
+                && h.RoomPlayer.RoomId == roomId
+                && h.Order == playerOrder
+                && h.HandNumber == handOrder
+            );
+        // return hand or throw exception if not found
+        return hand ?? throw new NotFoundException("Hand not found");
     }
 
     // Create a new hand

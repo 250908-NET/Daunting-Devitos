@@ -12,7 +12,7 @@ public interface IDeckApiService
         numOfDecks = 6
         enableJokers = false
     */
-    Task<string> CreateDeck(int numOfDecks, bool enableJokers);
+    Task<string> CreateDeck(int numOfDecks = 6, bool enableJokers = false);
 
     /*
     Create an empty hand (pile) identified by handName within the specified deck.
@@ -45,4 +45,20 @@ public interface IDeckApiService
     Returns true if successful.
     */
     Task<bool> ReturnAllCardsToDeck(string deckId);
+
+    /// <summary>
+    /// Calls Api to add card to specified hand. If hand does not exist, will create a hand with the given handName.
+    /// </summary>
+    Task<bool> AddToHand(string deckId, string handName, string cardCodes);
+
+    /// <summary>
+    /// Calls Api to remove cards from specified hand.
+    /// </summary>
+    /// <returns>true if successful</returns>
+    Task<bool> RemoveFromHand(string deckId, string handName, string cardCodes);
+
+    /// <summary>
+    /// Lists all cards in specified hand (pile) from specified deck.
+    /// </summary>
+    Task<List<CardDTO>> ListHand(string deckId, string handName);
 }
