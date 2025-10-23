@@ -8,7 +8,10 @@ using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
+// Add the correct using if IHandRepository exists in another namespace, for example:
+using Project.Api.Repositories; // <-- Change this to the actual namespace if needed
 using Project.Api.Services;
+using Project.Api.Services.Interface;
 using Project.Api.Utilities;
 using Xunit;
 
@@ -18,17 +21,24 @@ public class BlackjackServiceTest
 {
     private readonly Mock<IRoomRepository> _roomRepositoryMock;
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
+
+    private readonly Mock<IDeckApiService> _deckApiServiceMock;
+    private readonly Mock<IHandRepository> _handRepositoryMock;
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
     {
         _roomRepositoryMock = new Mock<IRoomRepository>();
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
+        _deckApiServiceMock = new Mock<IDeckApiService>();
+        _handRepositoryMock = new Mock<IHandRepository>();
         // Mocking IUserRepository is not needed for the betting action logic
         _blackjackService = new BlackjackService(
             _roomRepositoryMock.Object,
             _roomPlayerRepositoryMock.Object,
-            new Mock<IUserRepository>().Object
+            new Mock<IUserRepository>().Object,
+            _deckApiServiceMock.Object,
+            _handRepositoryMock.Object
         );
     }
 
