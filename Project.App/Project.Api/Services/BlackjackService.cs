@@ -169,14 +169,26 @@ public class BlackjackService(
             case BetAction betAction:
                 await ProcessBetAsync(state, roomId, player, betAction.Amount);
 
-                // if not past deadline, do not move to next stage
+                // if past deadline, move to next stage
                 if (DateTime.UtcNow < ((BlackjackBettingStage)state.CurrentStage).Deadline)
                 {
+                    await StartRoundAsync(state, roomId);
                     break;
                 }
 
-                // time is up, start the round
-                await StartRoundAsync(state, roomId);
+                // if all active players have bet, start the round
+                List<RoomPlayer> activePlayers =
+                [
+                    .. await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId),
+                ];
+                Dictionary<Guid, long> bets = ((BlackjackBettingStage)state.CurrentStage).Bets;
+                if (activePlayers.All(p => bets.ContainsKey(p.Id)) && bets.Count > 0)
+                {
+                    await StartRoundAsync(state, roomId);
+                    break;
+                }
+
+                // otherwise, do nothing
                 break;
             case HitAction:
                 bool busted = await DoHitAsync(state, roomId, player);
