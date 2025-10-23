@@ -86,8 +86,6 @@ export default function PlayerClient({ _id }) {
     setShowModal(false);
     setCreditsToAdd('');
   };
-  
-}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-green-800 to-emerald-900 p-8 relative overflow-hidden flex items-center justify-center">
