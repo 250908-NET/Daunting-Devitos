@@ -153,32 +153,112 @@ public class BlackjackServiceTest
         _roomPlayerRepositoryMock
             .Setup(r => r.GetByIdAsync(otherPlayer.Id))
             .ReturnsAsync(otherPlayer);
-        _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room); // Add this line
+        _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
+
+        // Define card DTOs for clarity and to ensure non-null values
+        var player1Card1 = new CardDTO
+        {
+            Code = "H2",
+            Value = "2",
+            Suit = "HEARTS",
+        };
+        var player2Card1 = new CardDTO
+        {
+            Code = "D3",
+            Value = "3",
+            Suit = "DIAMONDS",
+        };
+        var dealerCard1 = new CardDTO
+        {
+            Code = "S4",
+            Value = "4",
+            Suit = "SPADES",
+        };
+        var player1Card2 = new CardDTO
+        {
+            Code = "C5",
+            Value = "5",
+            Suit = "CLUBS",
+        };
+        var player2Card2 = new CardDTO
+        {
+            Code = "H6",
+            Value = "6",
+            Suit = "HEARTS",
+        };
+        var dealerCard2 = new CardDTO
+        {
+            Code = "SK",
+            Value = "KING",
+            Suit = "SPADES",
+        };
+
+        // Mock DrawCards to return specific cards for the initial deal sequence
+        // (2 rounds * (2 players + 1 dealer) = 6 calls)
         _deckApiServiceMock
-            .Setup(d => d.DrawCards(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
-            .ReturnsAsync(
-                [
-                    new()
-                    {
-                        Code = "C1",
-                        Suit = "CLUBS",
-                        Value = "ACE",
-                    },
-                ]
-            );
+            .SetupSequence(d => d.DrawCards(It.IsAny<string>(), It.IsAny<string>(), 1))
+            .ReturnsAsync([player1Card1]) // Round 1: Player 1
+            .ReturnsAsync([player2Card1]) // Round 1: Player 2
+            .ReturnsAsync([dealerCard1]) // Round 1: Dealer
+            .ReturnsAsync([player1Card2]) // Round 2: Player 1
+            .ReturnsAsync([player2Card2]) // Round 2: Player 2
+            .ReturnsAsync([dealerCard2]); // Round 2: Dealer
+
+        // Setup hand IDs for the hands that will be created
+        var actingPlayerHandId = Guid.NewGuid();
+        var otherPlayerHandId = Guid.NewGuid();
+
+        // Mock CreateHandAsync to capture the created hand IDs and orders
+        _handRepositoryMock
+            .Setup(h => h.CreateHandAsync(It.IsAny<Hand>()))
+            .Callback<Hand>(hand =>
+            {
+                if (hand.RoomPlayerId == actingPlayer.Id)
+                {
+                    hand.Id = actingPlayerHandId;
+                    hand.Order = 0; // Assuming acting player is the first hand
+                }
+                else if (hand.RoomPlayerId == otherPlayer.Id)
+                {
+                    hand.Id = otherPlayerHandId;
+                    hand.Order = 1; // Assuming other player is the second hand
+                }
+            });
+
+        // Mock GetHandsByRoomIdAsync to return the expected hands after creation
         _handRepositoryMock
             .Setup(h => h.GetHandsByRoomIdAsync(roomId))
             .ReturnsAsync(
                 [
                     new Hand
                     {
-                        Id = Guid.NewGuid(),
-                        RoomPlayerId = actingPlayerId,
+                        Id = actingPlayerHandId,
+                        RoomPlayerId = actingPlayer.Id,
                         Order = 0,
                         Bet = betAmount,
                     },
+                    new Hand
+                    {
+                        Id = otherPlayerHandId,
+                        RoomPlayerId = otherPlayer.Id,
+                        Order = 1,
+                        Bet = 50L, // Bet from otherPlayer in bettingStage
+                    },
                 ]
             );
+
+        // Mock ListHand to return the full hands after dealing for each player and dealer
+        _deckApiServiceMock
+            .Setup(d => d.ListHand(deckId, $"hand-{actingPlayerHandId}"))
+            .ReturnsAsync([player1Card1, player1Card2]);
+
+        _deckApiServiceMock
+            .Setup(d => d.ListHand(deckId, $"hand-{otherPlayerHandId}"))
+            .ReturnsAsync([player2Card1, player2Card2]);
+
+        _deckApiServiceMock
+            .Setup(d => d.ListHand(deckId, "dealer"))
+            .ReturnsAsync([dealerCard1, dealerCard2]);
 
         // Act
         await _blackjackService.PerformActionAsync(
@@ -208,6 +288,56 @@ public class BlackjackServiceTest
                         JsonSerializer
                             .Deserialize<BlackjackState>(s, (JsonSerializerOptions?)null)!
                             .CurrentStage is BlackjackPlayerActionStage
+                    )
+                ),
+            Times.Once
+        );
+
+        // Verify SSE events for game state updates
+        _roomSSEServiceMock.Verify(
+            s =>
+                s.BroadcastEventAsync(
+                    roomId,
+                    RoomEventType.GameStateUpdate,
+                    It.IsAny<GameStateUpdateEventData>()
+                ),
+            Times.AtLeastOnce
+        );
+
+        // Verify SSE events for player reveals (for both players)
+        _roomSSEServiceMock.Verify(
+            s =>
+                s.BroadcastEventAsync(
+                    roomId,
+                    RoomEventType.PlayerReveal,
+                    It.Is<PlayerRevealEventData>(data =>
+                        data.PlayerHand.SequenceEqual(new[] { player1Card1, player1Card2 })
+                    )
+                ),
+            Times.Once
+        );
+        _roomSSEServiceMock.Verify(
+            s =>
+                s.BroadcastEventAsync(
+                    roomId,
+                    RoomEventType.PlayerReveal,
+                    It.Is<PlayerRevealEventData>(data =>
+                        data.PlayerHand.SequenceEqual(new[] { player2Card1, player2Card2 })
+                    )
+                ),
+            Times.Once
+        );
+
+        // Verify SSE event for dealer reveal (initial, one card facedown)
+        _roomSSEServiceMock.Verify(
+            s =>
+                s.BroadcastEventAsync(
+                    roomId,
+                    RoomEventType.DealerReveal,
+                    It.Is<DealerRevealEventData>(data =>
+                        data.DealerHand.Count == 2
+                        && data.DealerHand[0].Code == dealerCard1.Code
+                        && data.DealerHand[1].IsFaceDown == true
                     )
                 ),
             Times.Once

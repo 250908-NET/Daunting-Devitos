@@ -136,6 +136,13 @@ public class BlackjackService(
         room.GameState = JsonSerializer.Serialize(initialState);
 
         await _roomRepository.UpdateAsync(room);
+
+        // Broadcast initial game state
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = room.GameState }
+        );
     }
 
     public async Task PerformActionAsync(
@@ -189,9 +196,12 @@ public class BlackjackService(
                     ((BlackjackPlayerActionStage)state.CurrentStage).ResetDeadline(
                         _config.TurnTimeLimit
                     );
-                    await _roomRepository.UpdateGameStateAsync(
+                    string updatedGameState = JsonSerializer.Serialize(state);
+                    await _roomRepository.UpdateGameStateAsync(roomId, updatedGameState);
+                    await _roomSSEService.BroadcastEventAsync(
                         roomId,
-                        JsonSerializer.Serialize(state)
+                        RoomEventType.GameStateUpdate,
+                        new GameStateUpdateEventData { GameStateJson = updatedGameState }
                     );
                 }
                 break;
@@ -207,7 +217,8 @@ public class BlackjackService(
 
                 // next player or next stage
                 await NextHandOrFinishRoundAsync(state, roomId);
-                throw new NotImplementedException();
+                // throw new NotImplementedException(); // This line should be removed if DoDoubleAsync is fully implemented
+                break;
             case SplitAction splitAction:
                 await DoSplitAsync(state, roomId, player, splitAction.Amount);
 
@@ -215,7 +226,13 @@ public class BlackjackService(
                 ((BlackjackPlayerActionStage)state.CurrentStage).ResetDeadline(
                     _config.TurnTimeLimit
                 );
-                await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+                string updatedGameStateSplit = JsonSerializer.Serialize(state);
+                await _roomRepository.UpdateGameStateAsync(roomId, updatedGameStateSplit);
+                await _roomSSEService.BroadcastEventAsync(
+                    roomId,
+                    RoomEventType.GameStateUpdate,
+                    new GameStateUpdateEventData { GameStateJson = updatedGameStateSplit }
+                );
                 break;
             case SurrenderAction surrenderAction:
                 await DoSurrenderAsync(state, roomId, player);
@@ -244,6 +261,18 @@ public class BlackjackService(
                         // mark player as inactive
                         player.Status = Status.Inactive;
                         await _roomPlayerRepository.UpdateAsync(player);
+
+                        // Broadcast player action
+                        await _roomSSEService.BroadcastEventAsync(
+                            roomId,
+                            RoomEventType.PlayerAction,
+                            new PlayerActionEventData
+                            {
+                                PlayerId = playerId,
+                                Action = "hurry_up",
+                                ActionDetails = null,
+                            }
+                        );
 
                         // act as if the player stood
                         await NextHandOrFinishRoundAsync(state, roomId);
@@ -280,11 +309,31 @@ public class BlackjackService(
 
         // set bet in gamestate
         stage.Bets[player.Id] = bet;
-        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        string updatedGameState = JsonSerializer.Serialize(state);
+        await _roomRepository.UpdateGameStateAsync(roomId, updatedGameState);
 
         // update player status
         player.Status = Status.Active;
         await _roomPlayerRepository.UpdateAsync(player);
+
+        // Broadcast player action (bet)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerAction,
+            new PlayerActionEventData
+            {
+                PlayerId = player.Id,
+                Action = "bet",
+                ActionDetails = new { Amount = bet },
+            }
+        );
+
+        // Broadcast game state update
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = updatedGameState }
+        );
     }
 
     /// <summary>
@@ -298,7 +347,13 @@ public class BlackjackService(
 
         // move to dealing stage
         state.CurrentStage = new BlackjackDealingStage();
-        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        string updatedGameStateDealing = JsonSerializer.Serialize(state);
+        await _roomRepository.UpdateGameStateAsync(roomId, updatedGameStateDealing);
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = updatedGameStateDealing }
+        );
 
         // deduct bets from player balances and initialize hands
         int order = 0;
@@ -354,13 +409,67 @@ public class BlackjackService(
             await _deckApiService.DrawCards(deckId, "dealer", 1);
         }
 
+        // After dealing, broadcast initial hands
+        foreach (Hand hand in hands.OrderBy(h => h.Order))
+        {
+            List<CardDTO> playerHandCards = await _deckApiService.ListHand(
+                deckId,
+                $"hand-{hand.Id}"
+            );
+            await _roomSSEService.BroadcastEventAsync(
+                roomId,
+                RoomEventType.PlayerReveal,
+                new PlayerRevealEventData
+                {
+                    PlayerHand = playerHandCards,
+                    PlayerScore = CalculateHandValue(playerHandCards),
+                }
+            );
+        }
+
+        List<CardDTO> dealerInitialHand = await _deckApiService.ListHand(deckId, "dealer");
+        // For initial deal, one dealer card is face down
+        List<CardDTO> dealerRevealedHand = new List<CardDTO>();
+        if (dealerInitialHand.Count > 0)
+        {
+            dealerRevealedHand.Add(dealerInitialHand[0]); // First card face up
+            if (dealerInitialHand.Count > 1)
+            {
+                dealerRevealedHand.Add(
+                    new CardDTO
+                    {
+                        Code = "FACEDOWN",
+                        Image = "facedown_card_image_url", // Placeholder for a face-down card image
+                        Value = string.Empty,
+                        Suit = string.Empty,
+                        IsFaceDown = true,
+                    }
+                ); // Second card face down
+            }
+        }
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.DealerReveal,
+            new DealerRevealEventData
+            {
+                DealerHand = dealerRevealedHand,
+                DealerScore = CalculateHandValue(new List<CardDTO> { dealerInitialHand[0] }), // Only score the visible card
+            }
+        );
+
         // move to player action stage
         state.CurrentStage = new BlackjackPlayerActionStage(
             DateTimeOffset.UtcNow + _config.TurnTimeLimit,
             0,
             0
         );
-        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        string updatedGameStatePlayerAction = JsonSerializer.Serialize(state);
+        await _roomRepository.UpdateGameStateAsync(roomId, updatedGameStatePlayerAction);
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = updatedGameStatePlayerAction }
+        );
     }
 
     /// <summary>
@@ -412,10 +521,34 @@ public class BlackjackService(
             await InitializePlayerActionAsync(state, roomId, player);
 
         // draw one card and add it to player's hand
-        List<CardDTO> handCards = await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        List<CardDTO> drawnCards = await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        List<CardDTO> playerHandCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+
+        // Broadcast player action (hit)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerAction,
+            new PlayerActionEventData
+            {
+                PlayerId = player.Id,
+                Action = "hit",
+                ActionDetails = new { DrawnCard = drawnCards.FirstOrDefault() },
+            }
+        );
+
+        // Broadcast updated player hand
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerReveal,
+            new PlayerRevealEventData
+            {
+                PlayerHand = playerHandCards,
+                PlayerScore = CalculateHandValue(playerHandCards),
+            }
+        );
 
         // check if player busted
-        int totalValue = CalculateHandValue(handCards);
+        int totalValue = CalculateHandValue(playerHandCards);
 
         return totalValue > 21;
     }
@@ -452,7 +585,31 @@ public class BlackjackService(
         await _handRepository.UpdateHandAsync(hand.Id, hand);
 
         // draw one card and add it to player's hand
-        await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        List<CardDTO> drawnCards = await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        List<CardDTO> playerHandCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+
+        // Broadcast player action (double)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerAction,
+            new PlayerActionEventData
+            {
+                PlayerId = player.Id,
+                Action = "double",
+                ActionDetails = new { Amount = hand.Bet, DrawnCard = drawnCards.FirstOrDefault() },
+            }
+        );
+
+        // Broadcast updated player hand
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerReveal,
+            new PlayerRevealEventData
+            {
+                PlayerHand = playerHandCards,
+                PlayerScore = CalculateHandValue(playerHandCards),
+            }
+        );
     }
 
     /// <summary>
@@ -514,11 +671,50 @@ public class BlackjackService(
         await _deckApiService.AddToHand(deckId, $"hand-{newHand.Id}", cardToMove.Code);
 
         // draw one card for each hand
-        await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
-        await _deckApiService.DrawCards(deckId, $"hand-{newHand.Id}", 1);
+        List<CardDTO> drawnCard1 = await _deckApiService.DrawCards(deckId, $"hand-{hand.Id}", 1);
+        List<CardDTO> drawnCard2 = await _deckApiService.DrawCards(deckId, $"hand-{newHand.Id}", 1);
 
         // deduct bet from player's balance
         await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, -amount);
+
+        // Broadcast player action (split)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerAction,
+            new PlayerActionEventData
+            {
+                PlayerId = player.Id,
+                Action = "split",
+                ActionDetails = new
+                {
+                    OriginalHandId = hand.Id,
+                    NewHandId = newHand.Id,
+                    BetAmount = amount,
+                },
+            }
+        );
+
+        // Broadcast updated player hands
+        List<CardDTO> originalHandCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerReveal,
+            new PlayerRevealEventData
+            {
+                PlayerHand = originalHandCards,
+                PlayerScore = CalculateHandValue(originalHandCards),
+            }
+        );
+        List<CardDTO> newHandCards = await _deckApiService.ListHand(deckId, $"hand-{newHand.Id}");
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerReveal,
+            new PlayerRevealEventData
+            {
+                PlayerHand = newHandCards,
+                PlayerScore = CalculateHandValue(newHandCards),
+            }
+        );
     }
 
     /// <summary>
@@ -536,6 +732,18 @@ public class BlackjackService(
 
         // refund half of player's bet (add to balance and update gamestate)
         await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, hands[0].Bet / 2);
+
+        // Broadcast player action (surrender)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerAction,
+            new PlayerActionEventData
+            {
+                PlayerId = player.Id,
+                Action = "surrender",
+                ActionDetails = new { RefundAmount = hands[0].Bet / 2 },
+            }
+        );
     }
 
     /// <summary>
@@ -568,7 +776,13 @@ public class BlackjackService(
                 stage.PlayerIndex,
                 stage.HandIndex + 1
             );
-            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+            string updatedGameState = JsonSerializer.Serialize(state);
+            await _roomRepository.UpdateGameStateAsync(roomId, updatedGameState);
+            await _roomSSEService.BroadcastEventAsync(
+                roomId,
+                RoomEventType.GameStateUpdate,
+                new GameStateUpdateEventData { GameStateJson = updatedGameState }
+            );
             return;
         }
         catch (NotFoundException)
@@ -592,7 +806,13 @@ public class BlackjackService(
                 nextPlayerIndex,
                 0
             );
-            await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+            string updatedGameState = JsonSerializer.Serialize(state);
+            await _roomRepository.UpdateGameStateAsync(roomId, updatedGameState);
+            await _roomSSEService.BroadcastEventAsync(
+                roomId,
+                RoomEventType.GameStateUpdate,
+                new GameStateUpdateEventData { GameStateJson = updatedGameState }
+            );
             return;
         }
         catch (NotFoundException)
@@ -615,7 +835,13 @@ public class BlackjackService(
     {
         // transition to finish round stage
         state.CurrentStage = new BlackjackFinishRoundStage();
-        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        string updatedGameStateFinish = JsonSerializer.Serialize(state);
+        await _roomRepository.UpdateGameStateAsync(roomId, updatedGameStateFinish);
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = updatedGameStateFinish }
+        );
 
         Room room =
             await _roomRepository.GetByIdAsync(roomId)
@@ -637,6 +863,13 @@ public class BlackjackService(
             );
             dealerValue = CalculateHandValue(dealerHand);
         }
+
+        // Broadcast final dealer hand (all cards face up)
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.DealerReveal,
+            new DealerRevealEventData { DealerHand = dealerHand, DealerScore = dealerValue }
+        );
 
         // calculate winnings for each player hand
         List<Hand> hands = await _handRepository.GetHandsByRoomIdAsync(roomId);
@@ -668,6 +901,17 @@ public class BlackjackService(
                     // dealer wins, do nothing
                     break;
             }
+
+            // Broadcast final player hand and score
+            await _roomSSEService.BroadcastEventAsync(
+                roomId,
+                RoomEventType.PlayerReveal,
+                new PlayerRevealEventData
+                {
+                    PlayerHand = playerHand,
+                    PlayerScore = CalculateHandValue(playerHand),
+                }
+            );
         }
 
         // reset player hands
@@ -689,7 +933,13 @@ public class BlackjackService(
             DateTimeOffset.UtcNow + _config.BettingTimeLimit,
             []
         );
-        await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+        string updatedGameStateNextRound = JsonSerializer.Serialize(state);
+        await _roomRepository.UpdateGameStateAsync(roomId, updatedGameStateNextRound);
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.GameStateUpdate,
+            new GameStateUpdateEventData { GameStateJson = updatedGameStateNextRound }
+        );
     }
 
     static int CalculateHandValue(List<CardDTO> hand, int target = 21)
@@ -699,6 +949,9 @@ public class BlackjackService(
 
         foreach (CardDTO card in hand)
         {
+            if (card.IsFaceDown)
+                continue; // Do not count face-down cards for score calculation
+
             switch (card.Value.ToUpper())
             {
                 case "ACE":
