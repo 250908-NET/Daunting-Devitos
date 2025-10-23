@@ -1,14 +1,14 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Project.Api.Constants;
 using Project.Api.Data;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
@@ -84,7 +84,7 @@ public class RoomService(
             MinPlayers = dto.MinPlayers,
             DeckId = deckId,
             CreatedAt = DateTime.UtcNow,
-            IsActive = true
+            IsActive = true,
         };
 
         var createdRoom = await _roomRepository.CreateAsync(room);
@@ -159,7 +159,8 @@ public class RoomService(
         _logger.LogInformation("Starting game for room {RoomId}", roomId);
 
         // Get the room
-        var room = await _roomRepository.GetByIdAsync(roomId)
+        var room =
+            await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room with ID {roomId} not found.");
 
         // Validate room is not already started
@@ -250,17 +251,22 @@ public class RoomService(
                         DateTimeOffset.UtcNow + config.BettingTimeLimit,
                         new Dictionary<Guid, long>()
                     ),
-                    DealerHand = []
+                    DealerHand = [],
                 };
                 initialGameState = JsonSerializer.Serialize(blackjackState);
 
                 // Create empty hands in the deck for each player and the dealer
                 if (string.IsNullOrWhiteSpace(room.DeckId))
                 {
-                    throw new InternalServerException("Room DeckId is null or empty after creation.");
+                    throw new InternalServerException(
+                        "Room DeckId is null or empty after creation."
+                    );
                 }
 
-                _logger.LogInformation("Creating empty hands for players and dealer in deck {DeckId}", room.DeckId);
+                _logger.LogInformation(
+                    "Creating empty hands for players and dealer in deck {DeckId}",
+                    room.DeckId
+                );
 
                 // Get all players in the room
                 var players = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
@@ -269,12 +275,19 @@ public class RoomService(
                 foreach (var player in players)
                 {
                     await _deckApiService.CreateEmptyHand(room.DeckId, player.UserId.ToString());
-                    _logger.LogInformation("Created empty hand for player {PlayerId} in deck {DeckId}", player.UserId, room.DeckId);
+                    _logger.LogInformation(
+                        "Created empty hand for player {PlayerId} in deck {DeckId}",
+                        player.UserId,
+                        room.DeckId
+                    );
                 }
 
                 // Create empty hand for dealer
                 await _deckApiService.CreateEmptyHand(room.DeckId, "dealer");
-                _logger.LogInformation("Created empty hand for dealer in deck {DeckId}", room.DeckId);
+                _logger.LogInformation(
+                    "Created empty hand for dealer in deck {DeckId}",
+                    room.DeckId
+                );
 
                 break;
 
@@ -294,14 +307,20 @@ public class RoomService(
         room.IsActive = true;
         room.Round = 1;
 
-        var updatedRoom = await _roomRepository.UpdateAsync(room)
+        var updatedRoom =
+            await _roomRepository.UpdateAsync(room)
             ?? throw new InternalServerException("Failed to update room.");
 
         _logger.LogInformation("Successfully started game for room {RoomId}", roomId);
         return MapToResponseDto(updatedRoom);
     }
 
-    public async Task PerformPlayerActionAsync(Guid roomId, Guid playerId, string action, JsonElement data)
+    public async Task PerformPlayerActionAsync(
+        Guid roomId,
+        Guid playerId,
+        string action,
+        JsonElement data
+    )
     {
         _logger.LogInformation(
             "Player {PlayerId} performing action '{Action}' in room {RoomId}",
@@ -311,7 +330,8 @@ public class RoomService(
         );
 
         // Validate room exists
-        var room = await _roomRepository.GetByIdAsync(roomId)
+        var room =
+            await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room with ID {roomId} not found.");
 
         // Validate game has started
@@ -367,7 +387,8 @@ public class RoomService(
         _logger.LogInformation("User {UserId} attempting to join room {RoomId}", userId, roomId);
 
         // Validate room exists
-        var room = await _roomRepository.GetByIdAsync(roomId)
+        var room =
+            await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room with ID {roomId} not found.");
 
         // Validate room is active
@@ -385,11 +406,7 @@ public class RoomService(
         bool isAlreadyInRoom = await _roomPlayerRepository.IsPlayerInRoomAsync(roomId, userId);
         if (isAlreadyInRoom)
         {
-            _logger.LogWarning(
-                "User {UserId} is already in room {RoomId}",
-                userId,
-                roomId
-            );
+            _logger.LogWarning("User {UserId} is already in room {RoomId}", userId, roomId);
             throw new ConflictException($"Player {userId} is already in room {roomId}.");
         }
 
@@ -415,7 +432,7 @@ public class RoomService(
             UserId = userId,
             Role = Role.Player,
             Status = room.StartedAt == null ? Status.Active : Status.Away,
-            Balance = 0 // Will be set when game starts
+            Balance = 0, // Will be set when game starts
         };
 
         try
@@ -427,7 +444,8 @@ public class RoomService(
                 roomId
             );
         }
-        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("IX_RoomPlayer_RoomId_UserId_Unique") == true)
+        catch (DbUpdateException ex)
+            when (ex.InnerException?.Message.Contains("IX_RoomPlayer_RoomId_UserId_Unique") == true)
         {
             // Handle race condition where two requests tried to join simultaneously
             _logger.LogWarning(
@@ -447,11 +465,13 @@ public class RoomService(
         _logger.LogInformation("User {UserId} attempting to leave room {RoomId}", userId, roomId);
 
         // Validate room exists
-        var room = await _roomRepository.GetByIdAsync(roomId)
+        var room =
+            await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room with ID {roomId} not found.");
 
         // Get the player in the room
-        var roomPlayer = await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, userId)
+        var roomPlayer =
+            await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, userId)
             ?? throw new NotFoundException($"Player {userId} is not in room {roomId}.");
 
         // Check if player is the host
@@ -501,11 +521,7 @@ public class RoomService(
         else
         {
             // Regular player leaving - just remove them
-            _logger.LogInformation(
-                "Player {UserId} leaving room {RoomId}",
-                userId,
-                roomId
-            );
+            _logger.LogInformation("Player {UserId} leaving room {RoomId}", userId, roomId);
             await _roomPlayerRepository.DeleteAsync(roomPlayer.Id);
         }
 
@@ -513,7 +529,7 @@ public class RoomService(
         return MapToResponseDto(room);
     }
 
-
+    // TODO: replace with automapper implementation
     private static RoomDTO MapToResponseDto(Room room)
     {
         return new RoomDTO
@@ -529,27 +545,28 @@ public class RoomService(
             MinPlayers = room.MinPlayers,
             DeckId = room.DeckId ?? string.Empty,
             CreatedAt = room.CreatedAt,
-            IsActive = room.IsActive
+            IsActive = room.IsActive,
         };
     }
 
+    // TODO: replace with FLuent API validator
     private static void Validate(CreateRoomDTO dto)
     {
         if (dto.MinPlayers < 1)
-            throw new ArgumentException("Minimum players must be at least 1.", nameof(dto.MinPlayers));
+            throw new BadRequestException("Minimum players must be at least 1.");
 
         if (dto.MaxPlayers < dto.MinPlayers)
-            throw new ArgumentException("Maximum players must be >= minimum players.", nameof(dto.MaxPlayers));
+            throw new BadRequestException("Maximum players must be >= minimum players.");
 
         if (string.IsNullOrWhiteSpace(dto.GameMode))
-            throw new ArgumentException("Game mode is required.", nameof(dto.GameMode));
+            throw new BadRequestException("Game mode is required.");
 
         if (string.IsNullOrWhiteSpace(dto.GameState))
-            throw new ArgumentException("Game state is required.", nameof(dto.GameState));
+            throw new BadRequestException("Game state is required.");
 
         // DeckId is now optional - it will be auto-created if not provided
 
         if (dto.Description?.Length > 500)
-            throw new ArgumentException("Description can't be longer than 500 characters.", nameof(dto.Description));
+            throw new BadRequestException("Description can't be longer than 500 characters.");
     }
 }

@@ -1,21 +1,14 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Moq;
 using Moq.Protected;
-using Project.Api.DTOs;
 using Project.Api.Services;
-using Xunit;
 
 namespace Project.Test.Services
 {
     public class DeckApiServiceTests
     {
-        private HttpClient CreateMockHttpClient(
+        private static HttpClient CreateMockHttpClient(
             string responseContent,
             HttpStatusCode statusCode = HttpStatusCode.OK
         )
@@ -63,7 +56,7 @@ namespace Project.Test.Services
             var service = new DeckApiService(client);
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => service.CreateDeck());
+            await Assert.ThrowsAsync<HttpRequestException>(() => service.CreateDeck());
         }
 
         [Fact]
@@ -95,8 +88,7 @@ namespace Project.Test.Services
 
             var handlerMock = new Mock<HttpMessageHandler>();
             var responses = new Queue<HttpResponseMessage>(
-                new[]
-                {
+                [
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(drawResponse),
@@ -113,8 +105,8 @@ namespace Project.Test.Services
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(listResponse),
-                    }
-                }
+                    },
+                ]
             );
 
             handlerMock
@@ -124,7 +116,7 @@ namespace Project.Test.Services
                     ItExpr.IsAny<HttpRequestMessage>(),
                     ItExpr.IsAny<CancellationToken>()
                 )
-                .ReturnsAsync(() => responses.Dequeue());
+                .ReturnsAsync(responses.Dequeue);
 
             var client = new HttpClient(handlerMock.Object);
             var service = new DeckApiService(client);
@@ -135,10 +127,10 @@ namespace Project.Test.Services
             // Assert
             Assert.NotNull(result);
             Assert.Single(result);
-            Assert.Equal("AS", result[0].code);
-            Assert.Equal("ACE", result[0].value);
-            Assert.Equal("SPADES", result[0].suit);
-            Assert.Equal("url1", result[0].image);
+            Assert.Equal("AS", result[0].Code);
+            Assert.Equal("ACE", result[0].Value);
+            Assert.Equal("SPADES", result[0].Suit);
+            Assert.Equal("url1", result[0].Image);
         }
 
         [Fact]
@@ -177,7 +169,9 @@ namespace Project.Test.Services
             var service = new DeckApiService(client);
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => service.CreateEmptyHand("deck123", 7));
+            await Assert.ThrowsAsync<HttpRequestException>(() =>
+                service.CreateEmptyHand("deck123", 7)
+            );
         }
 
         [Fact]
@@ -188,7 +182,9 @@ namespace Project.Test.Services
             var service = new DeckApiService(client);
 
             // Act & Assert
-            await Assert.ThrowsAsync<Exception>(() => service.ReturnAllCardsToDeck("deck123"));
+            await Assert.ThrowsAsync<HttpRequestException>(() =>
+                service.ReturnAllCardsToDeck("deck123")
+            );
         }
     }
 }

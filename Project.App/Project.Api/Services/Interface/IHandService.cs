@@ -1,13 +1,12 @@
+using Project.Api.Models;
+
+namespace Project.Api.Services.Interface;
+
 /*
     Name: IHandService.cs
     Description: Interface for Hand service
     Children: HandService.cs
 */
-using Project.Api.Models;
-using Project.Api.DTOs;
-
-namespace Project.Api.Services;
-
 public interface IHandService
 {
     // Define Fields

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Project.Api.Utilities;
+namespace Project.Api.Utilities.Enums;
 
 /// <summary>
 /// A JsonConverterFactory that provides a FlexibleEnumConverter for any enum type.

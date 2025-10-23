@@ -1,11 +1,11 @@
 using System.Text.Json;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
@@ -72,12 +72,14 @@ public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
     IUserRepository userRepository,
+    IHandRepository handRepository,
     IDeckApiService deckApiService
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IUserRepository _userRepository = userRepository;
+    private readonly IHandRepository _handRepository = handRepository;
     private readonly IDeckApiService _deckApiService = deckApiService;
 
     private BlackjackConfig _config = new();
@@ -188,10 +190,67 @@ public class BlackjackService(
 
                 break;
             case HitAction hitAction:
-                // draw a card and add to player's hand
+                // Fetch player's hands
+                var hands =
+                    await _handRepository.GetHandsByRoomIdAsync(player.Id)
+                    ?? throw new BadRequestException("No hand found for this player.");
 
-                // go back to player again
-                throw new NotImplementedException();
+                var hand =
+                    hands.FirstOrDefault()
+                    ?? throw new BadRequestException("No hand found for this player.");
+
+                // Retrieve deck ID from room configuration or state
+                var room =
+                    await _roomRepository.GetByIdAsync(roomId)
+                    ?? throw new BadRequestException("Room not found.");
+
+                // Draw one card and add it to player's hand
+                var drawnCards = await _deckApiService.DrawCards(
+                    room.DeckId?.ToString()
+                        ?? throw new InternalServerException($"Deck for room {roomId} not found."),
+                    hand.Id.ToString(),
+                    1
+                );
+
+                // --- Calculate total value and check for bust ---
+                int totalValue = 0;
+                int aceCount = 0;
+
+                foreach (var card in drawnCards)
+                {
+                    switch (card.Value.ToUpper())
+                    {
+                        case "ACE":
+                            aceCount++;
+                            totalValue += 11;
+                            break;
+                        case "KING":
+                        case "QUEEN":
+                        case "JACK":
+                            totalValue += 10;
+                            break;
+                        default:
+                            //Number cards (2–10) → handled by:
+                            if (int.TryParse(card.Value, out int val))
+                                totalValue += val;
+                            break;
+                    }
+                }
+
+                while (totalValue > 21 && aceCount > 0)
+                {
+                    totalValue -= 10;
+                    aceCount--;
+                }
+
+                if (totalValue > 21)
+                {
+                    await _roomPlayerRepository.UpdateAsync(player);
+                    await NextHandOrFinishRoundAsync(state, roomId);
+                }
+                await NextHandOrFinishRoundAsync(state, roomId);
+                break;
+
             case StandAction standAction:
                 // next player or next stage
                 await NextHandOrFinishRoundAsync(state, roomId);
@@ -272,7 +331,10 @@ public class BlackjackService(
                         DateTimeOffset.UtcNow + _config.TurnTimeLimit,
                         0
                     );
-                    await _roomRepository.UpdateGameStateAsync(roomId, JsonSerializer.Serialize(state));
+                    await _roomRepository.UpdateGameStateAsync(
+                        roomId,
+                        JsonSerializer.Serialize(state)
+                    );
 
                     // TODO: dealing stage
 
@@ -304,11 +366,14 @@ public class BlackjackService(
     {
         if (state.CurrentStage is not BlackjackPlayerActionStage playerActionStage)
         {
-            throw new InvalidOperationException("Cannot move to next hand when not in player action stage.");
+            throw new InvalidOperationException(
+                "Cannot move to next hand when not in player action stage."
+            );
         }
 
         // Get all active players in the room
-        IEnumerable<RoomPlayer> activePlayers = await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
+        IEnumerable<RoomPlayer> activePlayers =
+            await _roomPlayerRepository.GetActivePlayersInRoomAsync(roomId);
         List<RoomPlayer> activePlayersList = activePlayers.ToList();
 
         // Move to next player
@@ -330,12 +395,12 @@ public class BlackjackService(
         }
     }
 
-    // After the players have finished playing, the dealer's hand is resolved by drawing cards until 
-    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11 
-    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit. 
-    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win. 
-    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and 
-    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment. 
+    // After the players have finished playing, the dealer's hand is resolved by drawing cards until
+    // the hand achieves a total of 17 or higher. If the dealer has a total of 17 including an ace valued as 11
+    // (a "soft 17"), some games require the dealer to stand while other games require the dealer to hit.
+    // The dealer never doubles, splits, or surrenders. If the dealer busts, all players who haven't busted win.
+    // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
+    // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
     private async Task FinishRoundAsync(BlackjackState state, Guid roomId)
     {
@@ -363,10 +428,10 @@ public class BlackjackService(
                         // Convert CardDTO to the format expected in dealer's hand
                         var dealerCard = new
                         {
-                            value = card.value,
-                            suit = card.suit,
-                            code = card.code,
-                            image = card.image
+                            value = card.Value,
+                            suit = card.Suit,
+                            code = card.Code,
+                            image = card.Image
                         };
                         
                         state.DealerHand.Add(dealerCard);
@@ -461,7 +526,7 @@ public class BlackjackService(
             string cardValue = "";
             if (cardObj is CardDTO cardDto)
             {
-                cardValue = cardDto.value;
+                cardValue = cardDto.Value;
             }
             else if (cardObj is JsonElement element && element.TryGetProperty("value", out JsonElement valueElement))
             {

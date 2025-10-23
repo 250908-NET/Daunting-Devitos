@@ -1,3 +1,9 @@
+using Project.Api.Models;
+using Project.Api.Repositories.Interface;
+using Project.Api.Services.Interface;
+
+namespace Project.Api.Services;
+
 /*
     Name: HandService.cs
     Description: Implementation of Hand service
@@ -12,15 +18,6 @@
     DeleteHandAsync(Guid handId) - /{handId} # delete a hand by id
     Parent: IHandService.cs
 */
-using Microsoft.Extensions.ObjectPool;
-using Project.Api.Models;
-using Project.Api.Repositories;
-using Project.Api.Services.Interface;
-using Project.Api.Services;
-using Project.Api.DTOs;
-
-namespace Project.Api.Services;
-
 public class HandService : IHandService
 {
     // Call the repository
@@ -50,13 +47,18 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Getting all hands for room {roomId}");
+            _logger.LogInformation("Getting all hands for room {roomId}", roomId);
             return await _Repo.GetHandsByRoomIdAsync(roomId);
         }
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error getting hands for room {roomId}: {e.Message}");
+            _logger.LogError(
+                e,
+                "Error getting hands for room {roomId}: {e.Message}",
+                roomId,
+                e.Message
+            );
             throw new Exception(e.Message);
         }
     }
@@ -67,13 +69,13 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Getting hand {handId}");
+            _logger.LogInformation("Getting hand {handId}", handId);
             return await _Repo.GetHandByIdAsync(handId);
         }
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error getting hand {handId}: {e.Message}");
+            _logger.LogError(e, "Error getting hand {handId}: {e.Message}", handId, e.Message);
             throw new Exception(e.Message);
         }
     }
@@ -84,7 +86,11 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Getting all hands for user {userId} in room {roomId}");
+            _logger.LogInformation(
+                "Getting all hands for user {userId} in room {roomId}",
+                userId,
+                roomId
+            );
             return await _Repo.GetHandsByUserIdAsync(roomId, userId);
         }
         catch (Exception e)
@@ -92,7 +98,10 @@ public class HandService : IHandService
             // throw an exception and Log it
             _logger.LogError(
                 e,
-                $"Error getting all hands for user {userId} in room {roomId}: {e.Message}"
+                "Error getting all hands for user {userId} in room {roomId}: {e.Message}",
+                userId,
+                roomId,
+                e.Message
             );
             throw new Exception(e.Message);
         }
@@ -104,13 +113,13 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Updating hand {handId}");
+            _logger.LogInformation("Updating hand {handId}", handId);
             return await _Repo.UpdateHandAsync(handId, hand);
         }
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error updating hand {handId}: {e.Message}");
+            _logger.LogError(e, "Error updating hand {handId}: {e.Message}", handId, e.Message);
             throw new Exception(e.Message);
         }
     }
@@ -121,13 +130,13 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Patching hand {handId}");
+            _logger.LogInformation("Patching hand {handId}", handId);
             return await _Repo.PatchHandAsync(handId, Order, Bet);
         }
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error patching hand {handId}: {e.Message}");
+            _logger.LogError(e, "Error patching hand {handId}: {e.Message}", handId, e.Message);
             throw new Exception(e.Message);
         }
     }
@@ -138,13 +147,13 @@ public class HandService : IHandService
         try
         {
             // send request to repository
-            _logger.LogInformation($"Deleting hand {handId}");
+            _logger.LogInformation("Deleting hand {handId}", handId);
             return await _Repo.DeleteHandAsync(handId);
         }
         catch (Exception e)
         {
             // throw an exception and Log it
-            _logger.LogError(e, $"Error deleting hand {handId}: {e.Message}");
+            _logger.LogError(e, "Error deleting hand {handId}: {e.Message}", handId, e.Message);
             throw new Exception(e.Message);
         }
     }

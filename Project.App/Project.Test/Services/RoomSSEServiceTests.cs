@@ -10,7 +10,6 @@ public class RoomSSEServiceTests
     /// <summary>
     /// Creates a mock HttpContext for testing SSE connections.
     /// </summary>
-    /// <returns>A tuple containing the HttpContext, a CancellationTokenSource to simulate disconnection, and the MemoryStream for the response body.</returns>
     private static (
         HttpContext context,
         CancellationTokenSource cts,

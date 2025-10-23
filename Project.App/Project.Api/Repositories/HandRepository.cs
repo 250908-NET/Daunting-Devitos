@@ -1,16 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using Project.Api.Data;
+using Project.Api.Models;
+using Project.Api.Repositories.Interface;
+
+namespace Project.Api.Repositories;
+
 /*
     Name: HandRepository.cs
     Description: Repository for Hand entity
     Children: IHandRepository.cs
 */
-using Microsoft.EntityFrameworkCore;
-using Project.Api.Data;
-using Project.Api.Enums;
-using Project.Api.Models;
-using Project.Api.Repositories;
-
-namespace Project.Api.Repositories;
-
 public class HandRepository : IHandRepository
 {
     private readonly AppDbContext _context;
@@ -118,7 +117,7 @@ public class HandRepository : IHandRepository
 
         // Update properties if provided
         existingHand.Order = Order ?? existingHand.Order;
-        existingHand.Bet += (Bet ?? 0);
+        existingHand.Bet += Bet ?? 0;
 
         // Update the hand in the context and save changes
         _context.Hands.Update(existingHand);
