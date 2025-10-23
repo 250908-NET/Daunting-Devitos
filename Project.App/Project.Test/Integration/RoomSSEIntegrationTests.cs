@@ -1,15 +1,10 @@
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Moq;
 using Project.Api;
 using Project.Api.DTOs;
 using Project.Api.Models.Games;
 using Project.Api.Services;
-using Project.Api.Services.Interface;
 using Project.Test.Helpers;
 
 namespace Project.Test.Integration;
