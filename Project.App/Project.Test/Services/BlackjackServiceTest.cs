@@ -65,17 +65,36 @@ public class BlackjackServiceTest
             Status = Status.Away,
         };
 
-        var bettingStage = new BlackjackBettingStage(
-            DateTimeOffset.UtcNow.AddMinutes(1),
-            new Dictionary<Guid, long>()
-        );
+        // another player who has not bet yet
+        // ensures round does not start prematurely
+        var player2 = new RoomPlayer
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            RoomId = roomId,
+            Balance = 1000,
+            Status = Status.Away,
+        };
+
+        var bettingStage = new BlackjackBettingStage(DateTimeOffset.UtcNow.AddMinutes(1), []);
         var gameState = new BlackjackState { CurrentStage = bettingStage };
         var gameStateString = JsonSerializer.Serialize(gameState);
+        var room = new Room
+        {
+            Id = roomId,
+            GameMode = GameModes.Blackjack,
+            GameState = gameStateString,
+            DeckId = "test_deck",
+        };
 
         _roomRepositoryMock.Setup(r => r.GetGameStateAsync(roomId)).ReturnsAsync(gameStateString);
+        _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
         _roomPlayerRepositoryMock
             .Setup(r => r.GetByRoomIdAndUserIdAsync(roomId, playerId))
             .ReturnsAsync(player);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.GetByRoomIdAsync(roomId))
+            .ReturnsAsync([player, player2]);
 
         // Act
         await _blackjackService.PerformActionAsync(
