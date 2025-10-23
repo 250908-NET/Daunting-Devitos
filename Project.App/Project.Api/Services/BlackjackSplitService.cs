@@ -40,14 +40,14 @@ namespace Project.Api.Services
             var handCards = await ListHand(deckId, originalHand);
 
             // Find first pair
-            var grouped = handCards.GroupBy(c => c.Value)
+            var grouped = handCards.GroupBy(c => c.value)
                                    .FirstOrDefault(g => g.Count() >= 2);
 
             if (grouped == null)
                 throw new Exception("No pair found to split");
 
             // Pick one card from the pair
-            var cardToSplit = grouped.ElementAt(1).Code;
+            var cardToSplit = grouped.ElementAt(1).code;
 
             return await SplitCard(deckId, originalHand, newHand, cardToSplit);
         }
