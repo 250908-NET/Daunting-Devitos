@@ -45,4 +45,16 @@ public interface IDeckApiService
     Returns true if successful.
     */
     Task<bool> ReturnAllCardsToDeck(string deckId);
+
+    /*
+    Get all cards currently in a hand (pile) without drawing new ones.
+    Returns list of cards in the hand.
+    */
+    Task<List<CardDTO>> GetHandCards(string deckId, string handName);
+
+    /*
+    Get all cards currently in a hand (pile) without drawing new ones.
+    Returns list of cards in the hand.
+    */
+    Task<List<CardDTO>> GetHandCards(string deckId, long handId);
 }

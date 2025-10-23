@@ -1,34 +1,104 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function CreateGameForm() {
-  const [roomName, setRoomName] = useState('');
-  const [minBet, setMinBet] = useState('');
-  const [maxPlayers, setMaxPlayers] = useState(5);
-  const [roomNameError, setRoomNameError] = useState('');
+export default function CreateGameForm({ userId, onRoomCreated }) {
+  const router = useRouter();
   const [roomDescription, setRoomDescription] = useState('');
+  const [minBet, setMinBet] = useState('10');
+  const [startingBalance, setStartingBalance] = useState('1000');
+  const [maxPlayers, setMaxPlayers] = useState(5);
+  const [formError, setFormError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validate roomName length
-    const name = roomName.trim();
-    if (name.length > 20) {
-      setRoomNameError('Room name must be 20 characters or less.');
-      const description = roomDescription.trim();
-      if (description.length > 100) {
-        setRoomNameError('Room description must be 100 characters or less.');
-        return;
-      }
-    }
-    setRoomNameError('');
 
-    // Dummy submit
-    alert(
-      `Game created! Room: ${name} Description: ${roomDescription} (min bet: $${minBet}, max players: ${maxPlayers})`,
-    );
-    setRoomName('');
-    setMinBet('');
-    setMaxPlayers(5);
+    const description = roomDescription.trim();
+    if (description.length > 500) {
+      setFormError('Room description must be 500 characters or less.');
+      return;
+    }
+
+    if (!description) {
+      setFormError('Room description is required.');
+      return;
+    }
+
+    const minBetValue = parseInt(minBet);
+    const startingBalanceValue = parseInt(startingBalance);
+
+    if (minBetValue < 0) {
+      setFormError('Minimum bet cannot be negative.');
+      return;
+    }
+
+    if (minBetValue > startingBalanceValue) {
+      setFormError('Minimum bet cannot exceed starting balance.');
+      return;
+    }
+
+    setFormError('');
+    setIsCreating(true);
+
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7069';
+
+      // Create initial game state for Blackjack
+      const initialGameState = JSON.stringify({
+        currentStage: {
+          $type: 'init'
+        },
+        dealerHand: []
+      });
+
+      // Create game config with BlackjackConfig structure
+      const gameConfig = JSON.stringify({
+        startingBalance: startingBalanceValue,
+        minBet: minBetValue,
+        bettingTimeLimit: '00:01:00', // 1 minute
+        turnTimeLimit: '00:00:30' // 30 seconds
+      });
+
+      const response = await fetch(`${API_URL}/api/room`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          hostId: userId,
+          description: description,
+          isPublic: true,
+          gameMode: 'Blackjack',
+          gameState: initialGameState,
+          gameConfig: gameConfig,
+          maxPlayers: maxPlayers,
+          minPlayers: 1,
+          deckId: '',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Server error response:', error);
+        throw new Error(error.message || error.title || 'Failed to create room');
+      }
+
+      const room = await response.json();
+
+      // Refresh the rooms list
+      if (onRoomCreated) {
+        onRoomCreated();
+      }
+
+      // Redirect to the game room immediately
+      router.push(`/game/${room.id}`);
+    } catch (error) {
+      console.error('Error creating room:', error);
+      setFormError(error.message);
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -39,52 +109,52 @@ export default function CreateGameForm() {
       <h2 className="text-2xl font-bold bg-gradient-to-b from-yellow-400 via-yellow-500 to-yellow-600 bg-clip-text text-transparent mb-4">
         Create New Game
       </h2>
+      {formError && (
+        <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm">
+          {formError}
+        </div>
+      )}
       <div className="mb-4">
-        <label className="block text-yellow-100 mb-1 font-semibold">Room Name (max 20 chars)</label>
-        <input
-          type="text"
-          value={roomName}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val.trim().length <= 20) {
-              setRoomNameError('');
-            }
-            setRoomName(val);
-          }}
-          maxLength={20}
-          className={`w-full px-4 py-2 rounded bg-black/60 border ${roomNameError ? 'border-red-500' : 'border-yellow-700'} text-yellow-100 focus:outline-none focus:ring-2 ${roomNameError ? 'focus:ring-red-500' : 'focus:ring-yellow-500'}`}
-          aria-invalid={roomNameError ? 'true' : 'false'}
-          required
-        />
-        {roomNameError && <p className="mt-1 text-sm text-red-400">{roomNameError}</p>}
-      </div>
-      <div className="mb-4">
-        <label className="block text-yellow-100 mb-1 font-semibold">Room Description (max 100 chars)</label>
-        <input
-          type="text"
+        <label className="block text-yellow-100 mb-1 font-semibold">Room Description (max 500 chars)</label>
+        <textarea
           value={roomDescription}
           onChange={(e) => {
-            const val = e.target.value;
-            if (val.trim().length <= 100) {
-              setRoomNameError('');
-            }
-            setRoomDescription(val);
+            setFormError('');
+            setRoomDescription(e.target.value);
           }}
-          maxLength={100}
-          className={`w-full px-4 py-2 rounded bg-black/60 border ${roomNameError ? 'border-red-500' : 'border-yellow-700'} text-yellow-100 focus:outline-none focus:ring-2 ${roomNameError ? 'focus:ring-red-500' : 'focus:ring-yellow-500'}`}
-          aria-invalid={roomNameError ? 'true' : 'false'}
+          maxLength={500}
+          rows={3}
+          className={`w-full px-4 py-2 rounded bg-black/60 border ${formError ? 'border-red-500' : 'border-yellow-700'} text-yellow-100 focus:outline-none focus:ring-2 ${formError ? 'focus:ring-red-500' : 'focus:ring-yellow-500'}`}
+          placeholder="e.g., High stakes blackjack - experienced players only!"
           required
         />
-        {roomNameError && <p className="mt-1 text-sm text-red-400">{roomNameError}</p>}
       </div>
       <div className="mb-4">
-        <label className="block text-yellow-100 mb-1 font-semibold">Minimum Bet </label>
+        <label className="block text-yellow-100 mb-1 font-semibold">Starting Balance</label>
         <input
           type="number"
-          min="10"
-          step="10"
+          min="100"
+          step="100"
+          value={startingBalance}
+          onChange={(e) => {
+            setFormError('');
+            setStartingBalance(e.target.value);
+          }}
+          className="w-full px-4 py-2 rounded bg-black/60 border border-yellow-700 text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          required
+        />
+      </div>
+      <div className="mb-4">
+        <label className="block text-yellow-100 mb-1 font-semibold">Minimum Bet</label>
+        <input
+          type="number"
+          min="1"
+          step="1"
           value={minBet}
-          onChange={(e) => setMinBet(e.target.value)}
+          onChange={(e) => {
+            setFormError('');
+            setMinBet(e.target.value);
+          }}
           className="w-full px-4 py-2 rounded bg-black/60 border border-yellow-700 text-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           required
         />
@@ -105,9 +175,10 @@ export default function CreateGameForm() {
       </div>
       <button
         type="submit"
-        className="w-full py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 border-2 border-yellow-700 shadow-md"
+        disabled={isCreating}
+        className="w-full py-2 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 border-2 border-yellow-700 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Create Game
+        {isCreating ? 'Creating...' : 'Create Game'}
       </button>
     </form>
   );

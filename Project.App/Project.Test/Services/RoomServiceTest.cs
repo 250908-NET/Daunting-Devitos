@@ -23,6 +23,7 @@ public class RoomServiceTest
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
     private readonly Mock<IBlackjackService> _blackjackServiceMock;
     private readonly Mock<IDeckApiService> _deckApiServiceMock;
+    private readonly Mock<IRoomSSEService> _roomSSEServiceMock;
     private readonly Mock<ILogger<RoomService>> _loggerMock;
     private readonly AppDbContext _dbContext;
     private readonly RoomService _roomService;
@@ -33,6 +34,7 @@ public class RoomServiceTest
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
         _blackjackServiceMock = new Mock<IBlackjackService>();
         _deckApiServiceMock = new Mock<IDeckApiService>();
+        _roomSSEServiceMock = new Mock<IRoomSSEService>();
         _loggerMock = new Mock<ILogger<RoomService>>();
         _dbContext = RepositoryTestHelper.CreateInMemoryContext();
 
@@ -41,6 +43,7 @@ public class RoomServiceTest
             _roomPlayerRepositoryMock.Object,
             _blackjackServiceMock.Object,
             _deckApiServiceMock.Object,
+            _roomSSEServiceMock.Object,
             _dbContext,
             _loggerMock.Object
         );
@@ -1026,6 +1029,10 @@ public class RoomServiceTest
             .Setup(r => r.GetByRoomIdAndUserIdAsync(roomId, playerId))
             .ReturnsAsync(roomPlayer);
         _roomPlayerRepositoryMock.Setup(r => r.DeleteAsync(roomPlayer.Id)).ReturnsAsync(true);
+        // Setup to return remaining players (host still in room)
+        _roomPlayerRepositoryMock
+            .Setup(r => r.GetByRoomIdAsync(roomId))
+            .ReturnsAsync(new List<RoomPlayer> { RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: hostId) });
 
         // Act
         var result = await _roomService.LeaveRoomAsync(roomId, playerId);
@@ -1034,15 +1041,17 @@ public class RoomServiceTest
         result.Should().NotBeNull();
         result.Id.Should().Be(roomId);
         _roomPlayerRepositoryMock.Verify(r => r.DeleteAsync(roomPlayer.Id), Times.Once);
+        // Room should NOT be updated when there are still players remaining
         _roomRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Room>()), Times.Never);
     }
 
     [Fact]
-    public async Task LeaveRoomAsync_ClosesRoom_WhenHostLeaves()
+    public async Task LeaveRoomAsync_TransfersHost_WhenHostLeavesWithOtherPlayers()
     {
         // Arrange
         var roomId = Guid.NewGuid();
         var hostId = Guid.NewGuid();
+        var newHostId = Guid.NewGuid();
 
         // Create a new in-memory database context that suppresses transaction warnings
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -1064,6 +1073,7 @@ public class RoomServiceTest
             _roomPlayerRepositoryMock.Object,
             _blackjackServiceMock.Object,
             _deckApiServiceMock.Object,
+            _roomSSEServiceMock.Object,
             dbContext,
             _loggerMock.Object
         );
@@ -1077,10 +1087,16 @@ public class RoomServiceTest
             role: Role.Admin
         );
 
+        var newHostPlayer = RepositoryTestHelper.CreateTestRoomPlayer(
+            roomId: roomId,
+            userId: newHostId,
+            role: Role.Player
+        );
+
         var otherPlayers = new List<RoomPlayer>
         {
             hostPlayer,
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
+            newHostPlayer,
             RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
         };
 
@@ -1090,6 +1106,7 @@ public class RoomServiceTest
             .ReturnsAsync(hostPlayer);
         _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(otherPlayers);
         _roomRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Room>())).ReturnsAsync(room);
+        _roomPlayerRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<RoomPlayer>())).ReturnsAsync(newHostPlayer);
         _roomPlayerRepositoryMock.Setup(r => r.DeleteAsync(It.IsAny<Guid>())).ReturnsAsync(true);
 
         // Act
@@ -1097,13 +1114,20 @@ public class RoomServiceTest
 
         // Assert
         result.Should().NotBeNull();
+        // Verify host was transferred (room updated with new HostId)
         _roomRepositoryMock.Verify(
-            r => r.UpdateAsync(It.Is<Room>(r => r.IsActive == false && r.EndedAt != null)),
+            r => r.UpdateAsync(It.Is<Room>(r => r.HostId == newHostId)),
             Times.Once
         );
+        // Verify new host role was updated to Admin
         _roomPlayerRepositoryMock.Verify(
-            r => r.DeleteAsync(It.IsAny<Guid>()),
-            Times.Exactly(3) // All 3 players removed
+            r => r.UpdateAsync(It.Is<RoomPlayer>(p => p.UserId == newHostId && p.Role == Role.Admin)),
+            Times.Once
+        );
+        // Verify only the old host was removed
+        _roomPlayerRepositoryMock.Verify(
+            r => r.DeleteAsync(hostPlayer.Id),
+            Times.Once
         );
     }
 

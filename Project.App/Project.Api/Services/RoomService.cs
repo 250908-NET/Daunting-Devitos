@@ -17,6 +17,7 @@ public class RoomService(
     IRoomPlayerRepository roomPlayerRepository,
     IBlackjackService blackjackService,
     IDeckApiService deckApiService,
+    IRoomSSEService roomSSEService,
     AppDbContext dbContext,
     ILogger<RoomService> logger
 ) : IRoomService
@@ -25,6 +26,7 @@ public class RoomService(
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
     private readonly IBlackjackService _blackjackService = blackjackService;
     private readonly IDeckApiService _deckApiService = deckApiService;
+    private readonly IRoomSSEService _roomSSEService = roomSSEService;
     private readonly AppDbContext _dbContext = dbContext;
     private readonly ILogger<RoomService> _logger = logger;
 
@@ -88,6 +90,25 @@ public class RoomService(
         };
 
         var createdRoom = await _roomRepository.CreateAsync(room);
+
+        // Automatically add the host as a player with Admin role
+        var hostPlayer = new RoomPlayer
+        {
+            Id = Guid.NewGuid(),
+            RoomId = createdRoom.Id,
+            UserId = dto.HostId,
+            Role = Role.Admin,
+            Status = Status.Active,
+            Balance = 0, // Will be set when game starts
+        };
+
+        await _roomPlayerRepository.CreateAsync(hostPlayer);
+        _logger.LogInformation(
+            "Host {UserId} automatically added to room {RoomId} as Admin",
+            dto.HostId,
+            createdRoom.Id
+        );
+
         return MapToResponseDto(createdRoom);
     }
 
@@ -253,7 +274,16 @@ public class RoomService(
                     ),
                     DealerHand = [],
                 };
-                initialGameState = JsonSerializer.Serialize(blackjackState);
+
+                // Serialize with options to include type discriminators for polymorphism
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false,
+                    TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
+                };
+                initialGameState = JsonSerializer.Serialize(blackjackState, jsonOptions);
+                _logger.LogInformation("Serialized game state: {GameState}", initialGameState);
 
                 // Create empty hands in the deck for each player and the dealer
                 if (string.IsNullOrWhiteSpace(room.DeckId))
@@ -312,6 +342,15 @@ public class RoomService(
             ?? throw new InternalServerException("Failed to update room.");
 
         _logger.LogInformation("Successfully started game for room {RoomId}", roomId);
+
+        // Broadcast game started event to all players via SSE
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            "room_updated",
+            MapToResponseDto(updatedRoom)
+        );
+        _logger.LogInformation("Broadcasted game start for room {RoomId}", roomId);
+
         return MapToResponseDto(updatedRoom);
     }
 
@@ -368,6 +407,17 @@ public class RoomService(
                     playerId,
                     roomId
                 );
+
+                // Broadcast game state update via SSE
+                var updatedRoom = await _roomRepository.GetByIdAsync(roomId);
+                if (updatedRoom != null)
+                {
+                    await _roomSSEService.BroadcastEventAsync(
+                        roomId,
+                        "room_updated",
+                        MapToResponseDto(updatedRoom)
+                    );
+                }
                 break;
 
             default:
@@ -456,8 +506,29 @@ public class RoomService(
             throw new ConflictException($"Player {userId} is already in room {roomId}.");
         }
 
-        // Return the room (no need to fetch again, we have it)
-        return MapToResponseDto(room);
+        // Refetch the room to get updated RoomPlayers collection
+        var updatedRoom =
+            await _roomRepository.GetByIdAsync(roomId)
+            ?? throw new NotFoundException($"Room with ID {roomId} not found.");
+
+        _logger.LogInformation(
+            "Broadcasting join event for room {RoomId}. MaxPlayers: {MaxPlayers}, PlayerCount: {PlayerCount}",
+            roomId,
+            updatedRoom.MaxPlayers,
+            updatedRoom.RoomPlayers.Count
+        );
+
+        // Broadcast player joined event via SSE
+        var roomDto = MapToResponseDto(updatedRoom);
+        _logger.LogInformation(
+            "RoomDTO to broadcast - MaxPlayers: {MaxPlayers}, MinPlayers: {MinPlayers}",
+            roomDto.MaxPlayers,
+            roomDto.MinPlayers
+        );
+        await _roomSSEService.BroadcastEventAsync(roomId, "room_updated", roomDto);
+
+        // Return the updated room
+        return roomDto;
     }
 
     public async Task<RoomDTO> LeaveRoomAsync(Guid roomId, Guid userId)
@@ -478,40 +549,65 @@ public class RoomService(
         if (room.HostId == userId)
         {
             _logger.LogInformation(
-                "Host {UserId} leaving room {RoomId}. Closing room and removing all players",
+                "Host {UserId} leaving room {RoomId}. Checking for other players...",
                 userId,
                 roomId
             );
 
-            // Host is leaving - close the room within a transaction
+            // Get all players in the room
+            var allPlayers = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
+            var otherPlayers = allPlayers.Where(p => p.UserId != userId).ToList();
+
+            // Host is leaving - check if there are other players
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
-                // Mark room as inactive
-                room.IsActive = false;
-                room.EndedAt = DateTime.UtcNow;
-                await _roomRepository.UpdateAsync(room);
-
-                // Remove all players
-                var allPlayers = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
-                foreach (var player in allPlayers)
+                if (otherPlayers.Any())
                 {
-                    await _roomPlayerRepository.DeleteAsync(player.Id);
+                    // Transfer host to the next player (first one we find)
+                    var newHost = otherPlayers.First();
+                    room.HostId = newHost.UserId;
+                    await _roomRepository.UpdateAsync(room);
+
+                    // Update the new host's role to Admin
+                    newHost.Role = Role.Admin;
+                    await _roomPlayerRepository.UpdateAsync(newHost);
+
+                    // Remove the old host from players
+                    await _roomPlayerRepository.DeleteAsync(roomPlayer.Id);
+
+                    _logger.LogInformation(
+                        "Transferred host of room {RoomId} from {OldHostId} to {NewHostId}",
+                        roomId,
+                        userId,
+                        newHost.UserId
+                    );
+                }
+                else
+                {
+                    // No other players - close the room
+                    room.IsActive = false;
+                    room.EndedAt = DateTime.UtcNow;
+                    await _roomRepository.UpdateAsync(room);
+
+                    // Remove the host (only player)
+                    await _roomPlayerRepository.DeleteAsync(roomPlayer.Id);
+
+                    _logger.LogInformation(
+                        "Closed room {RoomId} as host {UserId} was the last player",
+                        roomId,
+                        userId
+                    );
                 }
 
                 await transaction.CommitAsync();
-                _logger.LogInformation(
-                    "Successfully closed room {RoomId} and removed {PlayerCount} players",
-                    roomId,
-                    allPlayers.Count()
-                );
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 _logger.LogError(
                     ex,
-                    "Failed to close room {RoomId} when host {UserId} left",
+                    "Failed to handle host {UserId} leaving room {RoomId}",
                     roomId,
                     userId
                 );
@@ -520,13 +616,44 @@ public class RoomService(
         }
         else
         {
-            // Regular player leaving - just remove them
+            // Regular player leaving - remove them and check if room is now empty
             _logger.LogInformation("Player {UserId} leaving room {RoomId}", userId, roomId);
             await _roomPlayerRepository.DeleteAsync(roomPlayer.Id);
+
+            // Check if room is now empty
+            var remainingPlayers = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
+            if (!remainingPlayers.Any())
+            {
+                _logger.LogInformation("Room {RoomId} is now empty. Closing room.", roomId);
+                room.IsActive = false;
+                room.EndedAt = DateTime.UtcNow;
+                await _roomRepository.UpdateAsync(room);
+            }
         }
 
-        // Return the room (we already have it)
-        return MapToResponseDto(room);
+        // Refetch the room to get updated RoomPlayers collection
+        var updatedRoom =
+            await _roomRepository.GetByIdAsync(roomId)
+            ?? throw new NotFoundException($"Room with ID {roomId} not found.");
+
+        _logger.LogInformation(
+            "Broadcasting leave event for room {RoomId}. MaxPlayers: {MaxPlayers}, IsActive: {IsActive}",
+            roomId,
+            updatedRoom.MaxPlayers,
+            updatedRoom.IsActive
+        );
+
+        // Broadcast player left event via SSE
+        var roomDto = MapToResponseDto(updatedRoom);
+        _logger.LogInformation(
+            "RoomDTO to broadcast - MaxPlayers: {MaxPlayers}, IsActive: {IsActive}",
+            roomDto.MaxPlayers,
+            roomDto.IsActive
+        );
+        await _roomSSEService.BroadcastEventAsync(roomId, "room_updated", roomDto);
+
+        // Return the updated room
+        return roomDto;
     }
 
     // TODO: replace with automapper implementation

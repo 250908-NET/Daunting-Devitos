@@ -74,7 +74,7 @@ public class RoomSSEServiceTests
         await Task.Delay(100);
 
         var eventName = "player-joined";
-        var eventData = new { PlayerId = "player123", Name = "John Doe" };
+        var eventData = new { playerId = "player123", name = "John Doe" };
         var expectedPayload =
             $"event: {eventName}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
 
@@ -126,7 +126,7 @@ public class RoomSSEServiceTests
         await stream2.DisposeAsync();
 
         var eventName = "test-event";
-        var eventData = new { Message = "Hello" };
+        var eventData = new { message = "Hello" };
         var expectedPayload =
             $"event: {eventName}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
 
@@ -148,7 +148,7 @@ public class RoomSSEServiceTests
         long afterFirstLength = stream1.Length;
 
         // Act: second broadcast
-        var secondEventData = new { Message = "Still here?" };
+        var secondEventData = new { message = "Still here?" };
         var expectedPayload2 =
             $"event: second-event\ndata: {JsonSerializer.Serialize(secondEventData)}\n\n";
         await sseService.BroadcastEventAsync(roomId, "second-event", secondEventData);
