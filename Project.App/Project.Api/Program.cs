@@ -42,6 +42,13 @@ public class Program
         builder.Services.AddOpenApi();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+        builder.Services.AddHttpClient();
+
+        builder.Services.AddSingleton<IDeckApiService, DeckApiService>();
+
+        builder.Services.AddScoped<IUserService, UserService>();
+
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
 
         var app = builder.Build();
 
@@ -56,13 +63,7 @@ public class Program
                 return Results.Ok(CS);
             }
         );
-        builder.Services.AddHttpClient();
-
-        builder.Services.AddSingleton<IDeckApiService, DeckApiService>();
-
-        builder.Services.AddScoped<IUserService, UserService>();
-
-        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
