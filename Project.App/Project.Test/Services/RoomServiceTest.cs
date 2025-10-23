@@ -3,18 +3,17 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Project.Api.Constants;
 using Project.Api.Data;
 using Project.Api.DTOs;
-using Project.Api.Enums;
 using Project.Api.Models;
 using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
+using Project.Api.Utilities.Enums;
 using Project.Test.Helpers;
-using Xunit;
 
 namespace Project.Test.Tests.Services;
 
@@ -93,7 +92,7 @@ public class RoomServiceTest
         {
             RepositoryTestHelper.CreateTestRoom(),
             RepositoryTestHelper.CreateTestRoom(),
-            RepositoryTestHelper.CreateTestRoom()
+            RepositoryTestHelper.CreateTestRoom(),
         };
         _roomRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(rooms);
 
@@ -116,7 +115,7 @@ public class RoomServiceTest
         var activeRooms = new List<Room>
         {
             RepositoryTestHelper.CreateTestRoom(isActive: true),
-            RepositoryTestHelper.CreateTestRoom(isActive: true)
+            RepositoryTestHelper.CreateTestRoom(isActive: true),
         };
         _roomRepositoryMock.Setup(r => r.GetActiveRoomsAsync()).ReturnsAsync(activeRooms);
 
@@ -140,7 +139,7 @@ public class RoomServiceTest
         var publicRooms = new List<Room>
         {
             RepositoryTestHelper.CreateTestRoom(isPublic: true),
-            RepositoryTestHelper.CreateTestRoom(isPublic: true)
+            RepositoryTestHelper.CreateTestRoom(isPublic: true),
         };
         _roomRepositoryMock.Setup(r => r.GetPublicRoomsAsync()).ReturnsAsync(publicRooms);
 
@@ -209,7 +208,7 @@ public class RoomServiceTest
             Description = "Test Room",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = deckId
+            DeckId = deckId,
         };
 
         var createdRoom = RepositoryTestHelper.CreateTestRoom(
@@ -224,11 +223,14 @@ public class RoomServiceTest
         // Assert
         result.Should().NotBeNull();
         result.HostId.Should().Be(hostId);
-        _roomRepositoryMock.Verify(r => r.CreateAsync(It.Is<Room>(room =>
-            room.HostId == hostId &&
-            room.DeckId == deckId
-        )), Times.Once);
-        _deckApiServiceMock.Verify(d => d.CreateDeck(It.IsAny<int>(), It.IsAny<bool>()), Times.Never);
+        _roomRepositoryMock.Verify(
+            r => r.CreateAsync(It.Is<Room>(room => room.HostId == hostId && room.DeckId == deckId)),
+            Times.Once
+        );
+        _deckApiServiceMock.Verify(
+            d => d.CreateDeck(It.IsAny<int>(), It.IsAny<bool>()),
+            Times.Never
+        );
     }
 
     [Fact]
@@ -247,7 +249,7 @@ public class RoomServiceTest
             Description = "Test Room",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "" // Empty DeckId should trigger auto-creation
+            DeckId = "", // Empty DeckId should trigger auto-creation
         };
 
         _deckApiServiceMock.Setup(d => d.CreateDeck(6, false)).ReturnsAsync(autoDeckId);
@@ -266,13 +268,14 @@ public class RoomServiceTest
         result.Should().NotBeNull();
         result.HostId.Should().Be(hostId);
         _deckApiServiceMock.Verify(d => d.CreateDeck(6, false), Times.Once);
-        _roomRepositoryMock.Verify(r => r.CreateAsync(It.Is<Room>(room =>
-            room.DeckId == autoDeckId
-        )), Times.Once);
+        _roomRepositoryMock.Verify(
+            r => r.CreateAsync(It.Is<Room>(room => room.DeckId == autoDeckId)),
+            Times.Once
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenMinPlayersLessThanOne()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenMinPlayersLessThanOne()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -284,15 +287,17 @@ public class RoomServiceTest
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 0, // Invalid
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenMaxPlayersLessThanMinPlayers()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenMaxPlayersLessThanMinPlayers()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -304,15 +309,17 @@ public class RoomServiceTest
             GameConfig = "{}",
             MaxPlayers = 2,
             MinPlayers = 5, // Invalid - greater than MaxPlayers
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenGameModeIsEmpty()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenGameModeIsEmpty()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -324,15 +331,17 @@ public class RoomServiceTest
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     [Fact]
-    public async Task CreateRoomAsync_ThrowsArgumentException_WhenDescriptionTooLong()
+    public async Task CreateRoomAsync_ThrowsBadRequestException_WhenDescriptionTooLong()
     {
         // Arrange
         var createDto = new CreateRoomDTO
@@ -345,11 +354,13 @@ public class RoomServiceTest
             Description = new string('a', 501), // 501 characters - too long
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() => _roomService.CreateRoomAsync(createDto));
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            _roomService.CreateRoomAsync(createDto)
+        );
     }
 
     #endregion
@@ -373,7 +384,7 @@ public class RoomServiceTest
             Description = "Updated Description",
             MaxPlayers = 8,
             MinPlayers = 3,
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(existingRoom);
@@ -384,13 +395,19 @@ public class RoomServiceTest
 
         // Assert
         result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Room>(room =>
-            room.Id == roomId &&
-            room.IsPublic == false &&
-            room.Description == "Updated Description" &&
-            room.MaxPlayers == 8 &&
-            room.MinPlayers == 3
-        )), Times.Once);
+        _roomRepositoryMock.Verify(
+            r =>
+                r.UpdateAsync(
+                    It.Is<Room>(room =>
+                        room.Id == roomId
+                        && room.IsPublic == false
+                        && room.Description == "Updated Description"
+                        && room.MaxPlayers == 8
+                        && room.MinPlayers == 3
+                    )
+                ),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -408,7 +425,7 @@ public class RoomServiceTest
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck"
+            DeckId = "test-deck",
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync((Room?)null);
@@ -519,7 +536,9 @@ public class RoomServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var gameState = "{\"currentStage\":\"playing\"}";
-        _roomRepositoryMock.Setup(r => r.UpdateGameStateAsync(roomId, gameState)).ReturnsAsync(true);
+        _roomRepositoryMock
+            .Setup(r => r.UpdateGameStateAsync(roomId, gameState))
+            .ReturnsAsync(true);
 
         // Act
         var result = await _roomService.UpdateGameStateAsync(roomId, gameState);
@@ -537,7 +556,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.UpdateGameStateAsync(roomId, ""));
+            _roomService.UpdateGameStateAsync(roomId, "")
+        );
     }
 
     [Fact]
@@ -548,7 +568,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.UpdateGameStateAsync(roomId, "   "));
+            _roomService.UpdateGameStateAsync(roomId, "   ")
+        );
     }
 
     #endregion
@@ -581,7 +602,9 @@ public class RoomServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var gameConfig = "{\"startingBalance\":2000}";
-        _roomRepositoryMock.Setup(r => r.UpdateGameConfigAsync(roomId, gameConfig)).ReturnsAsync(true);
+        _roomRepositoryMock
+            .Setup(r => r.UpdateGameConfigAsync(roomId, gameConfig))
+            .ReturnsAsync(true);
 
         // Act
         var result = await _roomService.UpdateGameConfigAsync(roomId, gameConfig);
@@ -599,7 +622,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.UpdateGameConfigAsync(roomId, ""));
+            _roomService.UpdateGameConfigAsync(roomId, "")
+        );
     }
 
     #endregion
@@ -623,7 +647,7 @@ public class RoomServiceTest
         var players = new List<RoomPlayer>
         {
             RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid())
+            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
@@ -642,11 +666,13 @@ public class RoomServiceTest
 
         // Assert
         result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Room>(r =>
-            r.StartedAt != null &&
-            r.Round == 1 &&
-            r.IsActive == true
-        )), Times.Once);
+        _roomRepositoryMock.Verify(
+            r =>
+                r.UpdateAsync(
+                    It.Is<Room>(r => r.StartedAt != null && r.Round == 1 && r.IsActive == true)
+                ),
+            Times.Once
+        );
         _roomPlayerRepositoryMock.Verify(
             r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()),
             Times.Once
@@ -655,10 +681,7 @@ public class RoomServiceTest
             d => d.CreateEmptyHand("test-deck-123", It.IsAny<string>()),
             Times.Exactly(3) // 2 players + 1 dealer
         );
-        _deckApiServiceMock.Verify(
-            d => d.CreateEmptyHand("test-deck-123", "dealer"),
-            Times.Once
-        );
+        _deckApiServiceMock.Verify(d => d.CreateEmptyHand("test-deck-123", "dealer"), Times.Once);
     }
 
     [Fact]
@@ -679,14 +702,14 @@ public class RoomServiceTest
         {
             StartingBalance = 5000,
             MinBet = 100,
-            BettingTimeLimit = TimeSpan.FromSeconds(120)
+            BettingTimeLimit = TimeSpan.FromSeconds(120),
         };
         var customConfigJson = JsonSerializer.Serialize(customConfig);
 
         var players = new List<RoomPlayer>
         {
             RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid())
+            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
@@ -705,11 +728,15 @@ public class RoomServiceTest
 
         // Assert
         result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Room>(r =>
-            r.StartedAt != null &&
-            r.Round == 1 &&
-            r.GameConfig == customConfigJson
-        )), Times.Once);
+        _roomRepositoryMock.Verify(
+            r =>
+                r.UpdateAsync(
+                    It.Is<Room>(r =>
+                        r.StartedAt != null && r.Round == 1 && r.GameConfig == customConfigJson
+                    )
+                ),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -720,8 +747,7 @@ public class RoomServiceTest
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync((Room?)null);
 
         // Act & Assert
-        await Assert.ThrowsAsync<NotFoundException>(() =>
-            _roomService.StartGameAsync(roomId));
+        await Assert.ThrowsAsync<NotFoundException>(() => _roomService.StartGameAsync(roomId));
     }
 
     [Fact]
@@ -735,8 +761,7 @@ public class RoomServiceTest
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
 
         // Act & Assert
-        await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.StartGameAsync(roomId));
+        await Assert.ThrowsAsync<BadRequestException>(() => _roomService.StartGameAsync(roomId));
     }
 
     [Fact]
@@ -744,11 +769,7 @@ public class RoomServiceTest
     {
         // Arrange
         var roomId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            minPlayers: 3,
-            maxPlayers: 6
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, minPlayers: 3, maxPlayers: 6);
         room.StartedAt = null;
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
@@ -756,7 +777,8 @@ public class RoomServiceTest
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.StartGameAsync(roomId));
+            _roomService.StartGameAsync(roomId)
+        );
         exception.Message.Should().Contain("Minimum 3 players required");
     }
 
@@ -776,8 +798,7 @@ public class RoomServiceTest
         _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
 
         // Act & Assert
-        await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.StartGameAsync(roomId));
+        await Assert.ThrowsAsync<BadRequestException>(() => _roomService.StartGameAsync(roomId));
     }
 
     [Fact]
@@ -795,7 +816,7 @@ public class RoomServiceTest
 
         var players = new List<RoomPlayer>
         {
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId)
+            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
@@ -807,7 +828,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<InternalServerException>(() =>
-            _roomService.StartGameAsync(roomId));
+            _roomService.StartGameAsync(roomId)
+        );
     }
 
     #endregion
@@ -820,19 +842,19 @@ public class RoomServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            isActive: true,
-            maxPlayers: 6
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, isActive: true, maxPlayers: 6);
         room.StartedAt = null; // Game not started
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, userId)).ReturnsAsync(false);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, userId))
+            .ReturnsAsync(false);
         _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
-        _roomPlayerRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>())).ReturnsAsync(
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: userId)
-        );
+        _roomPlayerRepositoryMock
+            .Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>()))
+            .ReturnsAsync(
+                RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: userId)
+            );
 
         // Act
         var result = await _roomService.JoinRoomAsync(roomId, userId);
@@ -840,12 +862,18 @@ public class RoomServiceTest
         // Assert
         result.Should().NotBeNull();
         result.Id.Should().Be(roomId);
-        _roomPlayerRepositoryMock.Verify(r => r.CreateAsync(It.Is<RoomPlayer>(rp =>
-            rp.RoomId == roomId &&
-            rp.UserId == userId &&
-            rp.Role == Role.Player &&
-            rp.Status == Status.Active
-        )), Times.Once);
+        _roomPlayerRepositoryMock.Verify(
+            r =>
+                r.CreateAsync(
+                    It.Is<RoomPlayer>(rp =>
+                        rp.RoomId == roomId
+                        && rp.UserId == userId
+                        && rp.Role == Role.Player
+                        && rp.Status == Status.Active
+                    )
+                ),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -854,28 +882,29 @@ public class RoomServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            isActive: true,
-            maxPlayers: 6
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, isActive: true, maxPlayers: 6);
         room.StartedAt = DateTime.UtcNow.AddMinutes(-5); // Game already started
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, userId)).ReturnsAsync(false);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, userId))
+            .ReturnsAsync(false);
         _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
-        _roomPlayerRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>())).ReturnsAsync(
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: userId)
-        );
+        _roomPlayerRepositoryMock
+            .Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>()))
+            .ReturnsAsync(
+                RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: userId)
+            );
 
         // Act
         var result = await _roomService.JoinRoomAsync(roomId, userId);
 
         // Assert
         result.Should().NotBeNull();
-        _roomPlayerRepositoryMock.Verify(r => r.CreateAsync(It.Is<RoomPlayer>(rp =>
-            rp.Status == Status.Away
-        )), Times.Once);
+        _roomPlayerRepositoryMock.Verify(
+            r => r.CreateAsync(It.Is<RoomPlayer>(rp => rp.Status == Status.Away)),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -888,7 +917,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            _roomService.JoinRoomAsync(roomId, userId));
+            _roomService.JoinRoomAsync(roomId, userId)
+        );
     }
 
     [Fact]
@@ -903,7 +933,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.JoinRoomAsync(roomId, userId));
+            _roomService.JoinRoomAsync(roomId, userId)
+        );
     }
 
     [Fact]
@@ -915,11 +946,14 @@ public class RoomServiceTest
         var room = RepositoryTestHelper.CreateTestRoom(id: roomId, isActive: true);
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, userId)).ReturnsAsync(true);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, userId))
+            .ReturnsAsync(true);
 
         // Act & Assert
         await Assert.ThrowsAsync<ConflictException>(() =>
-            _roomService.JoinRoomAsync(roomId, userId));
+            _roomService.JoinRoomAsync(roomId, userId)
+        );
     }
 
     [Fact]
@@ -928,19 +962,18 @@ public class RoomServiceTest
         // Arrange
         var roomId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            isActive: true,
-            maxPlayers: 4
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, isActive: true, maxPlayers: 4);
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, userId)).ReturnsAsync(false);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, userId))
+            .ReturnsAsync(false);
         _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(4); // Room is full
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ConflictException>(() =>
-            _roomService.JoinRoomAsync(roomId, userId));
+            _roomService.JoinRoomAsync(roomId, userId)
+        );
         exception.Message.Should().Contain("Room is full");
     }
 
@@ -953,17 +986,22 @@ public class RoomServiceTest
         var room = RepositoryTestHelper.CreateTestRoom(id: roomId, isActive: true);
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, userId)).ReturnsAsync(false);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, userId))
+            .ReturnsAsync(false);
         _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
 
         // Simulate race condition with duplicate key exception
         var innerException = new Exception("IX_RoomPlayer_RoomId_UserId_Unique");
         var dbException = new DbUpdateException("Duplicate entry", innerException);
-        _roomPlayerRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>())).ThrowsAsync(dbException);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.CreateAsync(It.IsAny<RoomPlayer>()))
+            .ThrowsAsync(dbException);
 
         // Act & Assert
         await Assert.ThrowsAsync<ConflictException>(() =>
-            _roomService.JoinRoomAsync(roomId, userId));
+            _roomService.JoinRoomAsync(roomId, userId)
+        );
     }
 
     #endregion
@@ -1009,7 +1047,15 @@ public class RoomServiceTest
         // Create a new in-memory database context that suppresses transaction warnings
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
+            .ConfigureWarnings(w =>
+                w.Ignore(
+                    Microsoft
+                        .EntityFrameworkCore
+                        .Diagnostics
+                        .InMemoryEventId
+                        .TransactionIgnoredWarning
+                )
+            )
             .Options;
         var dbContext = new AppDbContext(options);
 
@@ -1035,16 +1081,14 @@ public class RoomServiceTest
         {
             hostPlayer,
             RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId)
+            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
         _roomPlayerRepositoryMock
             .Setup(r => r.GetByRoomIdAndUserIdAsync(roomId, hostId))
             .ReturnsAsync(hostPlayer);
-        _roomPlayerRepositoryMock
-            .Setup(r => r.GetByRoomIdAsync(roomId))
-            .ReturnsAsync(otherPlayers);
+        _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(otherPlayers);
         _roomRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Room>())).ReturnsAsync(room);
         _roomPlayerRepositoryMock.Setup(r => r.DeleteAsync(It.IsAny<Guid>())).ReturnsAsync(true);
 
@@ -1053,10 +1097,10 @@ public class RoomServiceTest
 
         // Assert
         result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Room>(r =>
-            r.IsActive == false &&
-            r.EndedAt != null
-        )), Times.Once);
+        _roomRepositoryMock.Verify(
+            r => r.UpdateAsync(It.Is<Room>(r => r.IsActive == false && r.EndedAt != null)),
+            Times.Once
+        );
         _roomPlayerRepositoryMock.Verify(
             r => r.DeleteAsync(It.IsAny<Guid>()),
             Times.Exactly(3) // All 3 players removed
@@ -1073,7 +1117,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            _roomService.LeaveRoomAsync(roomId, userId));
+            _roomService.LeaveRoomAsync(roomId, userId)
+        );
     }
 
     [Fact]
@@ -1091,7 +1136,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            _roomService.LeaveRoomAsync(roomId, userId));
+            _roomService.LeaveRoomAsync(roomId, userId)
+        );
     }
 
     #endregion
@@ -1107,14 +1153,13 @@ public class RoomServiceTest
         var action = "hit";
         var data = JsonDocument.Parse("{}").RootElement;
 
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            gameMode: GameModes.Blackjack
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, gameMode: GameModes.Blackjack);
         room.StartedAt = DateTime.UtcNow.AddMinutes(-5);
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, playerId)).ReturnsAsync(true);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, playerId))
+            .ReturnsAsync(true);
         _blackjackServiceMock
             .Setup(s => s.PerformActionAsync(roomId, playerId, action, data))
             .Returns(Task.CompletedTask);
@@ -1141,7 +1186,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data));
+            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data)
+        );
     }
 
     [Fact]
@@ -1158,7 +1204,8 @@ public class RoomServiceTest
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data));
+            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data)
+        );
     }
 
     [Fact]
@@ -1172,11 +1219,14 @@ public class RoomServiceTest
         room.StartedAt = DateTime.UtcNow;
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, playerId)).ReturnsAsync(false);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, playerId))
+            .ReturnsAsync(false);
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data));
+            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data)
+        );
     }
 
     [Fact]
@@ -1186,18 +1236,18 @@ public class RoomServiceTest
         var roomId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
         var data = JsonDocument.Parse("{}").RootElement;
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            gameMode: "UnsupportedGame"
-        );
+        var room = RepositoryTestHelper.CreateTestRoom(id: roomId, gameMode: "UnsupportedGame");
         room.StartedAt = DateTime.UtcNow;
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.IsPlayerInRoomAsync(roomId, playerId)).ReturnsAsync(true);
+        _roomPlayerRepositoryMock
+            .Setup(r => r.IsPlayerInRoomAsync(roomId, playerId))
+            .ReturnsAsync(true);
 
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
-            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data));
+            _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data)
+        );
     }
 
     #endregion

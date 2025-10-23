@@ -1,13 +1,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Project.Api.Data;
-using Project.Api.Enums;
-using Project.Api.Models;
 using Project.Api.Repositories;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Enums;
 using Project.Test.Helpers;
 
-namespace Project.Test.Tests.Repositories;
+namespace Project.Test.Repositories;
 
 public class RoomPlayerRepositoryTests
 {
@@ -721,13 +719,13 @@ public class RoomPlayerRepositoryTests
         await context.RoomPlayers.AddAsync(roomPlayer);
         await context.SaveChangesAsync();
 
-    // Act - add 4000 to initial 1000 to reach expected 5000
-    await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, 4000);
+        // Act - add 4000 to initial 1000 to reach expected 5000
+        await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, 4000);
 
-    // Assert
-    var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
-    updatedPlayer.Should().NotBeNull();
-    updatedPlayer!.Balance.Should().Be(5000);
+        // Assert
+        var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
+        updatedPlayer.Should().NotBeNull();
+        updatedPlayer!.Balance.Should().Be(5000);
     }
 
     [Fact]
@@ -764,13 +762,13 @@ public class RoomPlayerRepositoryTests
         await context.RoomPlayers.AddAsync(roomPlayer);
         await context.SaveChangesAsync();
 
-    // Act - subtract 1500 from initial 1000 to reach expected -500
-    await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, -1500);
+        // Act - subtract 1500 from initial 1000 to reach expected -500
+        await repository.UpdatePlayerBalanceAsync(roomPlayer.Id, -1500);
 
-    // Assert
-    var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
-    updatedPlayer.Should().NotBeNull();
-    updatedPlayer!.Balance.Should().Be(-500);
+        // Assert
+        var updatedPlayer = await context.RoomPlayers.FindAsync(roomPlayer.Id);
+        updatedPlayer.Should().NotBeNull();
+        updatedPlayer!.Balance.Should().Be(-500);
     }
 
     [Fact]

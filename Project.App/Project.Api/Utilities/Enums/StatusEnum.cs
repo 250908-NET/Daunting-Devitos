@@ -1,4 +1,4 @@
-namespace Project.Api.Enums;
+namespace Project.Api.Utilities.Enums;
 
 public enum Status
 {

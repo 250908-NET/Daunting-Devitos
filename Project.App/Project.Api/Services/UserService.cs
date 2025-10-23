@@ -1,5 +1,6 @@
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
+using Project.Api.Services.Interface;
 
 namespace Project.Api.Services
 {
@@ -23,7 +24,7 @@ namespace Project.Api.Services
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error getting all users: {e.Message}");
+                _logger.LogError(e, "Error getting all users: {e.Message}", e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -32,12 +33,12 @@ namespace Project.Api.Services
         {
             try
             {
-                _logger.LogInformation($"Getting user {userId}");
+                _logger.LogInformation("Getting user {userId}", userId);
                 return await _repo.GetByIdAsync(userId);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error getting user {userId}: {e.Message}");
+                _logger.LogError(e, "Error getting user {userId}: {e.Message}", userId, e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -46,12 +47,17 @@ namespace Project.Api.Services
         {
             try
             {
-                _logger.LogInformation($"Getting user by email {email}");
+                _logger.LogInformation("Getting user by email {email}", email);
                 return await _repo.GetByEmailAsync(email);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error getting user by email {email}: {e.Message}");
+                _logger.LogError(
+                    e,
+                    "Error getting user by email {email}: {e.Message}",
+                    email,
+                    e.Message
+                );
                 throw new Exception(e.Message);
             }
         }
@@ -67,14 +73,14 @@ namespace Project.Api.Services
         {
             try
             {
-                _logger.LogInformation($"Updating user {userId}");
+                _logger.LogInformation("Updating user {userId}", userId);
                 user.Id = userId;
                 await _repo.UpdateAsync(user);
                 return user;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error updating user {userId}: {e.Message}");
+                _logger.LogError(e, "Error updating user {userId}: {e.Message}", userId, e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -83,13 +89,13 @@ namespace Project.Api.Services
         {
             try
             {
-                _logger.LogInformation($"Deleting user {userId}");
+                _logger.LogInformation("Deleting user {userId}", userId);
                 await _repo.DeleteAsync(userId);
                 return true;
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error deleting user {userId}: {e.Message}");
+                _logger.LogError(e, "Error deleting user {userId}: {e.Message}", userId, e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -98,7 +104,11 @@ namespace Project.Api.Services
         {
             try
             {
-                _logger.LogInformation($"Updating balance for user {userId} to {newBalance}");
+                _logger.LogInformation(
+                    "Updating balance for user {userId} to {newBalance}",
+                    userId,
+                    newBalance
+                );
                 var user = await GetUserByIdAsync(userId);
 
                 if (user == null)
@@ -112,7 +122,12 @@ namespace Project.Api.Services
             }
             catch (Exception e)
             {
-                _logger.LogError(e, $"Error updating balance for user {userId}: {e.Message}");
+                _logger.LogError(
+                    e,
+                    "Error updating balance for user {userId}: {e.Message}",
+                    userId,
+                    e.Message
+                );
                 throw new Exception(e.Message);
             }
         }

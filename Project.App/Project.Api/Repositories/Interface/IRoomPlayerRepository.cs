@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Project.Api.Enums;
 using Project.Api.Models;
+using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Repositories.Interface
 {

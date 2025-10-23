@@ -1,11 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Project.Api.Data;
 using Project.Api.Models;
-using Project.Api.Repositories.Interface;
+using Project.Api.Repositories;
 using Project.Test.Helpers;
 
-namespace Project.Test;
+namespace Project.Test.Repositories;
 
 public class UserRepositoryTests
 {

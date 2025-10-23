@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.Models;
+using Project.Api.Repositories.Interface;
 
-namespace Project.Api.Repositories.Interface
+namespace Project.Api.Repositories
 {
     public class UserRepository : IUserRepository
     {

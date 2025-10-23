@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Project.Api.Controllers;
 using Project.Api.Models;
 using Project.Api.Repositories.Interface;
-using Xunit;
 
 namespace Project.Api.Tests
 {
