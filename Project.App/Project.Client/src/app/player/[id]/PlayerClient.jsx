@@ -86,16 +86,7 @@ export default function PlayerClient({ _id }) {
     setShowModal(false);
     setCreditsToAdd('');
   };
-
-  function MyComponent() {
-  return (
-    <Image 
-      src="/images/my-image.png" 
-      alt="Description of my image" 
-      width={500} 
-      height={300} 
-    />
-  );
+  
 }
 
   return (
