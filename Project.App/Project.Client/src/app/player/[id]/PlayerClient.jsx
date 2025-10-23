@@ -7,10 +7,10 @@ import AddCreditsModal from '../../components/AddCreditsModal';
 
 export default function PlayerClient({ _id }) {
   const router = useRouter();
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState('Danny Devito');
   const [playerId, setPlayerId] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('https://www.shutterstock.com/editorial/image-editorial/NeTeY724MeD5Q1weMTgxMw==/danny-devito-440nw-5624612ab.jpg');
-  const [balance, setBalance] = useState(0);
+  const [balance, setBalance] = useState(2089234500);
   const [showModal, setShowModal] = useState(false);
   const [creditsToAdd, setCreditsToAdd] = useState('');
 
@@ -117,8 +117,8 @@ export default function PlayerClient({ _id }) {
           {playerName}
         </h1>
         <div className="bg-black/50 rounded-lg p-4 mb-6 border border-yellow-600 max-w-xs w-full text-center">
-          <p className="text-gray-300 text-sm mb-1">Current Credits</p>
-          <p className="text-3xl font-bold text-yellow-400">{balance} Devito Bucks</p>
+          <p className="text-3xl font-bold text-yellow-400">{balance}</p>
+          <p className="text-3xl font-bold text-yellow-400">Devito Bucks</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
