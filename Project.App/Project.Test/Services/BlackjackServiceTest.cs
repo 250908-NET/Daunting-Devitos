@@ -11,7 +11,7 @@ using Project.Api.Utilities;
 using Project.Api.Utilities.Constants;
 using Project.Api.Utilities.Enums;
 
-namespace Project.Test.Tests.Services;
+namespace Project.Test.Services;
 
 public class BlackjackServiceTest
 {
@@ -29,11 +29,10 @@ public class BlackjackServiceTest
         _handRepositoryMock = new Mock<IHandRepository>();
         _deckApiServiceMock = new Mock<IDeckApiService>();
         _roomSSEServiceMock = new Mock<IRoomSSEService>();
-        // Mocking IUserRepository is not needed for the betting action logic
+
         _blackjackService = new BlackjackService(
             _roomRepositoryMock.Object,
             _roomPlayerRepositoryMock.Object,
-            new Mock<IUserRepository>().Object,
             _handRepositoryMock.Object,
             _deckApiServiceMock.Object,
             _roomSSEServiceMock.Object,

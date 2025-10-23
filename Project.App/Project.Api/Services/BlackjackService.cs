@@ -73,7 +73,6 @@ solution (the funny one):
 public class BlackjackService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
-    IUserRepository userRepository,
     IHandRepository handRepository,
     IDeckApiService deckApiService,
     IRoomSSEService roomSSEService,
@@ -82,11 +81,10 @@ public class BlackjackService(
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
-    private readonly IUserRepository _userRepository = userRepository;
     private readonly IHandRepository _handRepository = handRepository;
     private readonly IDeckApiService _deckApiService = deckApiService;
     private readonly IRoomSSEService _roomSSEService = roomSSEService;
-    private readonly ILogger<BlackjackService> _logger = logger;
+    private readonly ILogger<BlackjackService> _logger = logger; // TODO: add more logging
 
     private BlackjackConfig _config = new();
     public BlackjackConfig Config
