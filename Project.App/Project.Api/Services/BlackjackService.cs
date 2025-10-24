@@ -887,7 +887,12 @@ public class BlackjackService(
         await dealerHand.BroadcastAsync(_roomSSEService, roomId);
 
         // calculate winnings for each player hand
-        List<Hand> hands = await _handRepository.GetHandsByRoomIdAsync(roomId);
+        List<Hand> hands =
+        [
+            .. (await _handRepository.GetHandsByRoomIdAsync(roomId))
+                .OrderBy(h => h.Order)
+                .ThenBy(h => h.HandNumber),
+        ]; // ensure hands are processed in order
         foreach (Hand hand in hands)
         {
             List<CardDTO> playerHand = await _deckApiService.ListHand(
