@@ -49,7 +49,7 @@ namespace Project.Api.Repositories
             await _context.SaveChangesAsync();
         }
 
-        // Update user balance 
+        // Update user balance
         public async Task UpdateBalanceAsync(User user)
         {
             _context.Users.Update(user);
