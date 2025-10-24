@@ -29,6 +29,9 @@ public class Program
             reloadOnChange: true
         );
 
+        // env files should override adminsettings.json
+        builder.Configuration.AddEnvironmentVariables();
+
         // configure Serilog
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()

@@ -7,17 +7,29 @@ services:
       - 8080:3000
     depends_on:
       - backend
-  
+
   backend:
     build:
       context: ./Project.App/Project.Api
     environment:
       # binds to ConnectionStrings:DefaultConnection
       - ConnectionStrings__DefaultConnection=Server=db;Database=DevitoDB;User Id=SA;Password=ThisIsTheBestPassword!!1!;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:7069;http://+:5131
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=devcertpass
     ports:
-      - 5131:5131
+      - 5131:5131 # http
+      - 7069:7069 # https
     depends_on:
       - db
+    volumes:
+      # dev certificate directory, assumes windows machine
+      # first run `dotnet dev-certs https -ep %USERPROFILE%\.aspnet\https\aspnetapp.pfx -p devcertpass`
+      # then run  `dotnet dev-certs https --trust`
+      # see: https://learn.microsoft.com/en-us/aspnet/core/security/docker-https?view=aspnetcore-9.0
+      # - ${APPDATA}/ASP.NET/https:/root/.aspnet/https:ro
+      - ${USERPROFILE}/.aspnet/https:/https/
 
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -27,7 +39,7 @@ services:
       - SA_PASSWORD=ThisIsTheBestPassword!!1!
       - MSSQL_PID=Developer # set to developer cuz we're developing :)
       - MSSQL_DATABASE=DevitoDB
-    ports: 
+    ports:
       - 1433:1433
     volumes:
       - db_data:/var/opt/mssql
