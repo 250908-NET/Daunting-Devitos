@@ -95,7 +95,7 @@ public class RoomController(
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var room = await _roomService.CreateRoomAsync(dto);
+        RoomDTO room = await _roomService.CreateRoomAsync(dto);
         return CreatedAtAction(nameof(GetRoomById), new { id = room.Id }, room);
     }
 

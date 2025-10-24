@@ -30,6 +30,12 @@ public class BlackjackServiceTest
         _deckApiServiceMock = new Mock<IDeckApiService>();
         _roomSSEServiceMock = new Mock<IRoomSSEService>();
 
+        var defaultConfig = new BlackjackConfig();
+        var defaultConfigString = JsonSerializer.Serialize(defaultConfig);
+        _roomRepositoryMock
+            .Setup(r => r.GetGameConfigAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(defaultConfigString);
+
         _blackjackService = new BlackjackService(
             _roomRepositoryMock.Object,
             _roomPlayerRepositoryMock.Object,

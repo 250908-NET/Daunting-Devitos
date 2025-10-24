@@ -12,15 +12,19 @@ public static class BlackjackCardExtensions
     /// <summary>
     /// Calculates the total value of a hand of blackjack cards.
     /// </summary>
-    public static int CalculateHandValue(this List<CardDTO> hand, int target = 21)
+    public static int CalculateHandValue(
+        this List<CardDTO> hand,
+        int target = 21,
+        bool countFlipped = false
+    )
     {
         int totalValue = 0;
         int aceCount = 0;
 
         foreach (CardDTO card in hand)
         {
-            if (card.IsFaceDown)
-                continue; // Do not count face-down cards for score calculation
+            if (card.IsFaceDown && !countFlipped)
+                continue; // Do not count face-down cards for score calculation unless specified
 
             switch (card.Value.ToUpper())
             {

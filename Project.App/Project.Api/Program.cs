@@ -33,7 +33,8 @@ public class Program
         builder.Host.UseSerilog();
 
         // use extension methods to configure services
-        builder.Services.AddDatabase(builder.Configuration);
+        if (!builder.Environment.IsEnvironment("Testing"))
+            builder.Services.AddDatabase(builder.Configuration);
         builder.Services.AddApplicationServices();
         builder.Services.AddCorsPolicy();
         builder.Services.AddAuth(builder.Configuration, builder.Environment);

@@ -15,7 +15,7 @@ using Project.Api.Utilities.Constants;
 using Project.Api.Utilities.Enums;
 using Project.Test.Helpers;
 
-namespace Project.Test.Tests.Services;
+namespace Project.Test.Services;
 
 public class RoomServiceTest
 {
@@ -33,8 +33,23 @@ public class RoomServiceTest
         _roomPlayerRepositoryMock = new Mock<IRoomPlayerRepository>();
         _blackjackServiceMock = new Mock<IBlackjackService>();
         _deckApiServiceMock = new Mock<IDeckApiService>();
+
+        // Configure DbContext to ignore transaction warnings for in-memory provider
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .ConfigureWarnings(w =>
+                w.Ignore(
+                    Microsoft
+                        .EntityFrameworkCore
+                        .Diagnostics
+                        .InMemoryEventId
+                        .TransactionIgnoredWarning
+                )
+            )
+            .Options;
+        _dbContext = new AppDbContext(options);
+
         _loggerMock = new Mock<ILogger<RoomService>>();
-        _dbContext = RepositoryTestHelper.CreateInMemoryContext();
 
         _roomService = new RoomService(
             _roomRepositoryMock.Object,
@@ -42,7 +57,7 @@ public class RoomServiceTest
             _blackjackServiceMock.Object,
             _deckApiServiceMock.Object,
             _dbContext,
-            _loggerMock.Object
+            new Mock<ILogger<RoomService>>().Object
         );
     }
 
@@ -192,87 +207,87 @@ public class RoomServiceTest
 
     #region CreateRoomAsync Tests
 
-    [Fact]
-    public async Task CreateRoomAsync_CreatesRoom_WithProvidedDeckId()
-    {
-        // Arrange
-        var hostId = Guid.NewGuid();
-        var deckId = "test-deck-123";
-        var createDto = new CreateRoomDTO
-        {
-            HostId = hostId,
-            IsPublic = true,
-            GameMode = GameModes.Blackjack,
-            GameState = "{}",
-            GameConfig = "{}",
-            Description = "Test Room",
-            MaxPlayers = 6,
-            MinPlayers = 2,
-            DeckId = deckId,
-        };
+    // deck id is not set on room creation anymore, so this test is obsolete
+    // [Fact]
+    // public async Task CreateRoomAsync_CreatesRoom_WithProvidedDeckId()
+    // {
+    //     // Arrange
+    //     var hostId = Guid.NewGuid();
+    //     var deckId = "test-deck-123";
+    //     var createDto = new CreateRoomDTO
+    //     {
+    //         HostId = hostId,
+    //         IsPublic = true,
+    //         GameMode = GameModes.Blackjack,
+    //         GameState = "{}",
+    //         GameConfig = "{}",
+    //         Description = "Test Room",
+    //         MaxPlayers = 6,
+    //         MinPlayers = 2,
+    //     };
 
-        var createdRoom = RepositoryTestHelper.CreateTestRoom(
-            hostId: hostId,
-            gameMode: GameModes.Blackjack
-        );
-        _roomRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<Room>())).ReturnsAsync(createdRoom);
+    //     var createdRoom = RepositoryTestHelper.CreateTestRoom(
+    //         hostId: hostId,
+    //         gameMode: GameModes.Blackjack
+    //     );
+    //     _roomRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<Room>())).ReturnsAsync(createdRoom);
 
-        // Act
-        var result = await _roomService.CreateRoomAsync(createDto);
+    //     // Act
+    //     var result = await _roomService.CreateRoomAsync(createDto);
 
-        // Assert
-        result.Should().NotBeNull();
-        result.HostId.Should().Be(hostId);
-        _roomRepositoryMock.Verify(
-            r => r.CreateAsync(It.Is<Room>(room => room.HostId == hostId && room.DeckId == deckId)),
-            Times.Once
-        );
-        _deckApiServiceMock.Verify(
-            d => d.CreateDeck(It.IsAny<int>(), It.IsAny<bool>()),
-            Times.Never
-        );
-    }
+    //     // Assert
+    //     result.Should().NotBeNull();
+    //     result.HostId.Should().Be(hostId);
+    //     _roomRepositoryMock.Verify(
+    //         r => r.CreateAsync(It.Is<Room>(room => room.HostId == hostId && room.DeckId == deckId)),
+    //         Times.Once
+    //     );
+    //     _deckApiServiceMock.Verify(
+    //         d => d.CreateDeck(It.IsAny<int>(), It.IsAny<bool>()),
+    //         Times.Never
+    //     );
+    // }
 
-    [Fact]
-    public async Task CreateRoomAsync_CreatesRoom_WithAutoDeckCreation_WhenDeckIdNotProvided()
-    {
-        // Arrange
-        var hostId = Guid.NewGuid();
-        var autoDeckId = "auto-created-deck-456";
-        var createDto = new CreateRoomDTO
-        {
-            HostId = hostId,
-            IsPublic = true,
-            GameMode = GameModes.Blackjack,
-            GameState = "{}",
-            GameConfig = "{}",
-            Description = "Test Room",
-            MaxPlayers = 6,
-            MinPlayers = 2,
-            DeckId = "", // Empty DeckId should trigger auto-creation
-        };
+    // deck id is not set on room creation anymore, so this test is obsolete
+    // [Fact]
+    // public async Task CreateRoomAsync_CreatesRoom_WithAutoDeckCreation_WhenDeckIdNotProvided()
+    // {
+    //     // Arrange
+    //     var hostId = Guid.NewGuid();
+    //     var autoDeckId = "auto-created-deck-456";
+    //     var createDto = new CreateRoomDTO
+    //     {
+    //         HostId = hostId,
+    //         IsPublic = true,
+    //         GameMode = GameModes.Blackjack,
+    //         GameState = "{}",
+    //         GameConfig = "{}",
+    //         Description = "Test Room",
+    //         MaxPlayers = 6,
+    //         MinPlayers = 2,
+    //     };
 
-        _deckApiServiceMock.Setup(d => d.CreateDeck(6, false)).ReturnsAsync(autoDeckId);
+    //     _deckApiServiceMock.Setup(d => d.CreateDeck(6, false)).ReturnsAsync(autoDeckId);
 
-        var createdRoom = RepositoryTestHelper.CreateTestRoom(
-            hostId: hostId,
-            gameMode: GameModes.Blackjack
-        );
-        createdRoom.DeckId = autoDeckId;
-        _roomRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<Room>())).ReturnsAsync(createdRoom);
+    //     var createdRoom = RepositoryTestHelper.CreateTestRoom(
+    //         hostId: hostId,
+    //         gameMode: GameModes.Blackjack
+    //     );
+    //     createdRoom.DeckId = autoDeckId;
+    //     _roomRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<Room>())).ReturnsAsync(createdRoom);
 
-        // Act
-        var result = await _roomService.CreateRoomAsync(createDto);
+    //     // Act
+    //     var result = await _roomService.CreateRoomAsync(createDto);
 
-        // Assert
-        result.Should().NotBeNull();
-        result.HostId.Should().Be(hostId);
-        _deckApiServiceMock.Verify(d => d.CreateDeck(6, false), Times.Once);
-        _roomRepositoryMock.Verify(
-            r => r.CreateAsync(It.Is<Room>(room => room.DeckId == autoDeckId)),
-            Times.Once
-        );
-    }
+    //     // Assert
+    //     result.Should().NotBeNull();
+    //     result.HostId.Should().Be(hostId);
+    //     _deckApiServiceMock.Verify(d => d.CreateDeck(6, false), Times.Once);
+    //     _roomRepositoryMock.Verify(
+    //         r => r.CreateAsync(It.Is<Room>(room => room.DeckId == autoDeckId)),
+    //         Times.Once
+    //     );
+    // }
 
     [Fact]
     public async Task CreateRoomAsync_ThrowsBadRequestException_WhenMinPlayersLessThanOne()
@@ -283,11 +298,9 @@ public class RoomServiceTest
             HostId = Guid.NewGuid(),
             IsPublic = true,
             GameMode = GameModes.Blackjack,
-            GameState = "{}",
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 0, // Invalid
-            DeckId = "test-deck",
         };
 
         // Act & Assert
@@ -305,11 +318,9 @@ public class RoomServiceTest
             HostId = Guid.NewGuid(),
             IsPublic = true,
             GameMode = GameModes.Blackjack,
-            GameState = "{}",
             GameConfig = "{}",
             MaxPlayers = 2,
             MinPlayers = 5, // Invalid - greater than MaxPlayers
-            DeckId = "test-deck",
         };
 
         // Act & Assert
@@ -327,11 +338,9 @@ public class RoomServiceTest
             HostId = Guid.NewGuid(),
             IsPublic = true,
             GameMode = "", // Invalid
-            GameState = "{}",
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck",
         };
 
         // Act & Assert
@@ -349,12 +358,10 @@ public class RoomServiceTest
             HostId = Guid.NewGuid(),
             IsPublic = true,
             GameMode = GameModes.Blackjack,
-            GameState = "{}",
             GameConfig = "{}",
             Description = new string('a', 501), // 501 characters - too long
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck",
         };
 
         // Act & Assert
@@ -379,12 +386,10 @@ public class RoomServiceTest
             HostId = existingRoom.HostId,
             IsPublic = false, // Changed
             GameMode = GameModes.Blackjack,
-            GameState = "{}",
             GameConfig = "{}",
             Description = "Updated Description",
             MaxPlayers = 8,
             MinPlayers = 3,
-            DeckId = "test-deck",
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(existingRoom);
@@ -421,11 +426,9 @@ public class RoomServiceTest
             HostId = Guid.NewGuid(),
             IsPublic = true,
             GameMode = GameModes.Blackjack,
-            GameState = "{}",
             GameConfig = "{}",
             MaxPlayers = 6,
             MinPlayers = 2,
-            DeckId = "test-deck",
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync((Room?)null);
@@ -635,53 +638,35 @@ public class RoomServiceTest
     {
         // Arrange
         var roomId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            gameMode: GameModes.Blackjack,
-            minPlayers: 2,
-            maxPlayers: 6
-        );
-        room.StartedAt = null; // Game not started yet
-        room.DeckId = "test-deck-123";
-
-        var players = new List<RoomPlayer>
+        var room = new Room
         {
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
+            Id = roomId,
+            GameMode = GameModes.Blackjack,
+            GameState = "",
+            MinPlayers = 1,
+            GameConfig = "",
         };
 
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
-        _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(players);
-        _roomPlayerRepositoryMock
-            .Setup(r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()))
+        _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(1);
+        _blackjackServiceMock
+            .Setup(bs => bs.StartGameAsync(roomId, It.IsAny<BlackjackConfig>()))
             .Returns(Task.CompletedTask);
-        _roomRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Room>())).ReturnsAsync(room);
-        _deckApiServiceMock
-            .Setup(d => d.CreateEmptyHand(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(true);
 
         // Act
-        var result = await _roomService.StartGameAsync(roomId);
+        await _roomService.StartGameAsync(roomId, null);
 
         // Assert
-        result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(
-            r =>
-                r.UpdateAsync(
-                    It.Is<Room>(r => r.StartedAt != null && r.Round == 1 && r.IsActive == true)
+        _blackjackServiceMock.Verify(
+            bs =>
+                bs.StartGameAsync(
+                    roomId,
+                    It.Is<BlackjackConfig>(c =>
+                        c.StartingBalance == new BlackjackConfig().StartingBalance
+                    )
                 ),
             Times.Once
         );
-        _roomPlayerRepositoryMock.Verify(
-            r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()),
-            Times.Once
-        );
-        _deckApiServiceMock.Verify(
-            d => d.CreateEmptyHand("test-deck-123", It.IsAny<string>()),
-            Times.Exactly(3) // 2 players + 1 dealer
-        );
-        _deckApiServiceMock.Verify(d => d.CreateEmptyHand("test-deck-123", "dealer"), Times.Once);
     }
 
     [Fact]
@@ -689,51 +674,31 @@ public class RoomServiceTest
     {
         // Arrange
         var roomId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            gameMode: GameModes.Blackjack,
-            minPlayers: 2,
-            maxPlayers: 6
-        );
-        room.StartedAt = null;
-        room.DeckId = "test-deck-123";
-
-        var customConfig = new BlackjackConfig
+        var room = new Room
         {
-            StartingBalance = 5000,
-            MinBet = 100,
-            BettingTimeLimit = TimeSpan.FromSeconds(120),
+            Id = roomId,
+            GameState = "",
+            GameMode = GameModes.Blackjack,
+            MinPlayers = 1,
         };
+        var customConfig = new BlackjackConfig { StartingBalance = 5000 };
         var customConfigJson = JsonSerializer.Serialize(customConfig);
 
-        var players = new List<RoomPlayer>
-        {
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId, userId: Guid.NewGuid()),
-        };
-
         _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
-        _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(players);
-        _roomPlayerRepositoryMock
-            .Setup(r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()))
+        _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(1);
+        _blackjackServiceMock
+            .Setup(bs => bs.StartGameAsync(roomId, It.IsAny<BlackjackConfig>()))
             .Returns(Task.CompletedTask);
-        _roomRepositoryMock.Setup(r => r.UpdateAsync(It.IsAny<Room>())).ReturnsAsync(room);
-        _deckApiServiceMock
-            .Setup(d => d.CreateEmptyHand(It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(true);
 
         // Act
-        var result = await _roomService.StartGameAsync(roomId, customConfigJson);
+        await _roomService.StartGameAsync(roomId, customConfigJson);
 
         // Assert
-        result.Should().NotBeNull();
-        _roomRepositoryMock.Verify(
-            r =>
-                r.UpdateAsync(
-                    It.Is<Room>(r =>
-                        r.StartedAt != null && r.Round == 1 && r.GameConfig == customConfigJson
-                    )
+        _blackjackServiceMock.Verify(
+            bs =>
+                bs.StartGameAsync(
+                    roomId,
+                    It.Is<BlackjackConfig>(c => c.StartingBalance == customConfig.StartingBalance)
                 ),
             Times.Once
         );
@@ -801,36 +766,37 @@ public class RoomServiceTest
         await Assert.ThrowsAsync<BadRequestException>(() => _roomService.StartGameAsync(roomId));
     }
 
-    [Fact]
-    public async Task StartGameAsync_ThrowsInternalServerException_WhenDeckIdIsNull()
-    {
-        // Arrange
-        var roomId = Guid.NewGuid();
-        var room = RepositoryTestHelper.CreateTestRoom(
-            id: roomId,
-            gameMode: GameModes.Blackjack,
-            minPlayers: 2
-        );
-        room.StartedAt = null;
-        room.DeckId = null; // Null DeckId should cause error
+    // deck id is not set on room creation anymore, so this test is obsolete
+    // [Fact]
+    // public async Task StartGameAsync_ThrowsInternalServerException_WhenDeckIdIsNull()
+    // {
+    //     // Arrange
+    //     var roomId = Guid.NewGuid();
+    //     var room = RepositoryTestHelper.CreateTestRoom(
+    //         id: roomId,
+    //         gameMode: GameModes.Blackjack,
+    //         minPlayers: 2
+    //     );
+    //     room.StartedAt = null;
+    //     room.DeckId = null; // Null DeckId should cause error
 
-        var players = new List<RoomPlayer>
-        {
-            RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
-        };
+    //     var players = new List<RoomPlayer>
+    //     {
+    //         RepositoryTestHelper.CreateTestRoomPlayer(roomId: roomId),
+    //     };
 
-        _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
-        _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
-        _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(players);
-        _roomPlayerRepositoryMock
-            .Setup(r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()))
-            .Returns(Task.CompletedTask);
+    //     _roomRepositoryMock.Setup(r => r.GetByIdAsync(roomId)).ReturnsAsync(room);
+    //     _roomPlayerRepositoryMock.Setup(r => r.GetPlayerCountInRoomAsync(roomId)).ReturnsAsync(2);
+    //     _roomPlayerRepositoryMock.Setup(r => r.GetByRoomIdAsync(roomId)).ReturnsAsync(players);
+    //     _roomPlayerRepositoryMock
+    //         .Setup(r => r.UpdatePlayersInRoomAsync(roomId, It.IsAny<Action<RoomPlayer>>()))
+    //         .Returns(Task.CompletedTask);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InternalServerException>(() =>
-            _roomService.StartGameAsync(roomId)
-        );
-    }
+    //     // Act & Assert
+    //     await Assert.ThrowsAsync<InternalServerException>(() =>
+    //         _roomService.StartGameAsync(roomId)
+    //     );
+    // }
 
     #endregion
 
@@ -1247,6 +1213,55 @@ public class RoomServiceTest
         // Act & Assert
         await Assert.ThrowsAsync<BadRequestException>(() =>
             _roomService.PerformPlayerActionAsync(roomId, playerId, "hit", data)
+        );
+    }
+
+    #endregion
+
+    #region i'm losing it
+
+    [Fact]
+    public async Task CreateRoomAsync_CreatesRoom_WhenDtoIsValid()
+    {
+        // Arrange
+        var createDto = new CreateRoomDTO
+        {
+            HostId = Guid.NewGuid(),
+            IsPublic = true,
+            GameMode = GameModes.Blackjack,
+            GameConfig = "{}",
+            Description = "A valid test room",
+            MaxPlayers = 4,
+            MinPlayers = 2,
+        };
+
+        var roomToCreate = new Room
+        {
+            Id = Guid.NewGuid(),
+            HostId = createDto.HostId,
+            GameMode = createDto.GameMode,
+            GameState = "{}",
+            MaxPlayers = createDto.MaxPlayers,
+            MinPlayers = createDto.MinPlayers,
+        };
+
+        _roomRepositoryMock.Setup(r => r.CreateAsync(It.IsAny<Room>())).ReturnsAsync(roomToCreate);
+
+        // Act
+        var result = await _roomService.CreateRoomAsync(createDto);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Id.Should().Be(roomToCreate.Id);
+        result.HostId.Should().Be(createDto.HostId);
+        _roomRepositoryMock.Verify(
+            r =>
+                r.CreateAsync(
+                    It.Is<Room>(room =>
+                        room.HostId == createDto.HostId && room.GameMode == createDto.GameMode
+                    )
+                ),
+            Times.Once
         );
     }
 

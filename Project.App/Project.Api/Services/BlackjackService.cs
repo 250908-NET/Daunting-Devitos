@@ -79,17 +79,22 @@ public class BlackjackService(
 ) : IBlackjackService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
-    private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
+    private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository; // TODO: use transactions for long-running tasks
     private readonly IHandRepository _handRepository = handRepository;
     private readonly IDeckApiService _deckApiService = deckApiService;
     private readonly IRoomSSEService _roomSSEService = roomSSEService;
     private readonly ILogger<BlackjackService> _logger = logger; // TODO: add more logging
 
-    private BlackjackConfig _config = new();
-    public BlackjackConfig Config
+    public async Task<BlackjackConfig> GetConfigAsync(Guid gameId)
     {
-        get => _config;
-        set => _config = value;
+        string configString = await _roomRepository.GetGameConfigAsync(gameId);
+        return JsonSerializer.Deserialize<BlackjackConfig>(configString)!;
+    }
+
+    public async Task SetConfigAsync(Guid gameId, BlackjackConfig config)
+    {
+        string configString = JsonSerializer.Serialize(config);
+        await _roomRepository.UpdateGameConfigAsync(gameId, configString);
     }
 
     public async Task<BlackjackState> GetGameStateAsync(Guid roomId)
@@ -112,27 +117,41 @@ public class BlackjackService(
             _ => false,
         };
 
-    public async Task SetupGameAsync(Guid roomId)
+    public async Task StartGameAsync(Guid roomId, BlackjackConfig config)
     {
         // create initial game state
         BlackjackState initialState = new()
         {
             CurrentStage = new BlackjackBettingStage(
-                DateTimeOffset.UtcNow + _config.BettingTimeLimit,
+                DateTimeOffset.UtcNow + config.BettingTimeLimit,
                 []
             ),
         };
 
+        // initialize player balances
+        await _roomPlayerRepository.UpdatePlayersInRoomAsync(
+            roomId,
+            player =>
+            {
+                player.Balance = config.StartingBalance;
+                player.Status = Status.Away; // Players start as Away, become Active when they bet
+            }
+        );
+
         // create new deck
         string deckId = await _deckApiService.CreateDeck();
 
-        // save to room
+        // update room
         Room room =
             await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room {roomId} not found.");
 
+        room.GameConfig = JsonSerializer.Serialize(config);
+        room.StartedAt = DateTimeOffset.UtcNow;
         room.DeckId = deckId;
         room.GameState = JsonSerializer.Serialize(initialState);
+        room.IsActive = true;
+        room.Round = 1;
 
         await _roomRepository.UpdateAsync(room);
 
@@ -163,6 +182,9 @@ public class BlackjackService(
 
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
+        // get config
+        BlackjackConfig config = await GetConfigAsync(roomId);
+
         // do the action :)
         switch (actionDTO)
         {
@@ -172,7 +194,7 @@ public class BlackjackService(
                 BlackjackBettingStage bettingStage = (BlackjackBettingStage)state.CurrentStage;
 
                 // if past deadline, move to next stage
-                if (DateTime.UtcNow > bettingStage.Deadline)
+                if (DateTimeOffset.UtcNow > bettingStage.Deadline)
                 {
                     await StartRoundAsync(state, roomId);
                     break;
@@ -198,7 +220,7 @@ public class BlackjackService(
                 // otherwise, do nothing
                 break;
             case HitAction:
-                bool busted = await DoHitAsync(state, roomId, player);
+                (state, bool busted) = await DoHitAsync(state, roomId, player);
 
                 if (busted)
                 {
@@ -208,7 +230,7 @@ public class BlackjackService(
                 {
                     // stay on the same player's turn, but reset the deadline
                     ((BlackjackPlayerActionStage)state.CurrentStage).ResetDeadline(
-                        _config.TurnTimeLimit
+                        config.TurnTimeLimit
                     );
                     await state.SaveStateAndBroadcastAsync(
                         roomId,
@@ -220,6 +242,21 @@ public class BlackjackService(
 
             case StandAction:
                 // do nothing :)
+
+                // broadcast player action (stand)
+                BlackjackPlayerActionStage stage = (BlackjackPlayerActionStage)state.CurrentStage;
+                Hand hand = await _handRepository.GetHandByRoomOrderAsync(
+                    roomId,
+                    stage.PlayerIndex,
+                    stage.HandIndex
+                );
+
+                await _roomSSEService.BroadcastPlayerActionAsync(
+                    roomId,
+                    player.UserId,
+                    hand.HandNumber,
+                    "stand"
+                );
 
                 // next player or next stage
                 await NextHandOrFinishRoundAsync(state, roomId);
@@ -236,7 +273,7 @@ public class BlackjackService(
 
                 // stay on the same player's turn, but reset the deadline
                 ((BlackjackPlayerActionStage)state.CurrentStage).ResetDeadline(
-                    _config.TurnTimeLimit
+                    config.TurnTimeLimit
                 );
                 await state.SaveStateAndBroadcastAsync(roomId, _roomRepository, _roomSSEService);
                 break;
@@ -265,7 +302,7 @@ public class BlackjackService(
                         break;
                     case BlackjackPlayerActionStage actionStage:
                         // check if deadline has passed
-                        if (DateTime.UtcNow < actionStage.Deadline)
+                        if (DateTimeOffset.UtcNow < actionStage.Deadline)
                         {
                             // deadline not passed, broadcast failed player action
                             await _roomSSEService.BroadcastPlayerActionAsync(
@@ -308,7 +345,7 @@ public class BlackjackService(
                         }
 
                         // act as if the player stood
-                        await NextHandOrFinishRoundAsync(state, roomId);
+                        await NextHandOrFinishRoundAsync(state, roomId, config);
                         break;
                     default:
                         throw new BadRequestException("Nothing to hurry in the current stage.");
@@ -348,7 +385,13 @@ public class BlackjackService(
         await _roomPlayerRepository.UpdateAsync(player);
 
         // broadcast player action (bet)
-        await _roomSSEService.BroadcastPlayerActionAsync(roomId, player.Id, 0, "bet", amount: bet);
+        await _roomSSEService.BroadcastPlayerActionAsync(
+            roomId,
+            player.UserId,
+            0,
+            "bet",
+            amount: bet
+        );
 
         await state.SaveStateAndBroadcastAsync(roomId, _roomRepository, _roomSSEService);
     }
@@ -357,8 +400,14 @@ public class BlackjackService(
     /// Start the round after betting is complete.
     /// Deduct bets from player balances and move to dealing stage.
     /// </summary>
-    private async Task StartRoundAsync(BlackjackState state, Guid roomId)
+    private async Task StartRoundAsync(
+        BlackjackState state,
+        Guid roomId,
+        BlackjackConfig? config = null
+    )
     {
+        config ??= await GetConfigAsync(roomId);
+
         // get bets
         Dictionary<Guid, long> bets = ((BlackjackBettingStage)state.CurrentStage).Bets;
 
@@ -441,7 +490,7 @@ public class BlackjackService(
 
         // move to player action stage
         state.CurrentStage = new BlackjackPlayerActionStage(
-            DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+            DateTimeOffset.UtcNow + config.TurnTimeLimit,
             0,
             0
         );
@@ -491,7 +540,11 @@ public class BlackjackService(
     /// Process a player's "hit" action during their turn.
     /// </summary>
     /// <returns>true if player busted</returns>
-    private async Task<bool> DoHitAsync(BlackjackState state, Guid roomId, RoomPlayer player)
+    private async Task<(BlackjackState, bool)> DoHitAsync(
+        BlackjackState state,
+        Guid roomId,
+        RoomPlayer player
+    )
     {
         (_, Hand hand, string deckId) = await InitializePlayerActionAsync(state, roomId, player);
 
@@ -502,7 +555,7 @@ public class BlackjackService(
         // broadcast player action (hit)
         await _roomSSEService.BroadcastPlayerActionAsync(
             roomId,
-            player.Id,
+            player.UserId,
             hand.HandNumber,
             "hit",
             cards: drawnCards
@@ -516,8 +569,8 @@ public class BlackjackService(
             hand.HandNumber
         );
 
-        // return if player busted
-        return playerHandCards.CalculateHandValue() > 21;
+        // return state and if player busted
+        return (state, playerHandCards.CalculateHandValue() > 21);
     }
 
     /// <summary>
@@ -558,7 +611,7 @@ public class BlackjackService(
         // broadcast player action (double)
         await _roomSSEService.BroadcastPlayerActionAsync(
             roomId,
-            player.Id,
+            player.UserId,
             hand.HandNumber,
             "double",
             cards: drawnCard,
@@ -642,7 +695,7 @@ public class BlackjackService(
         // broadcast player action (split)
         await _roomSSEService.BroadcastPlayerActionAsync(
             roomId,
-            player.Id,
+            player.UserId,
             hand.HandNumber,
             "split",
             amount: amount
@@ -671,25 +724,29 @@ public class BlackjackService(
     /// <summary>
     /// Process a player's "surrender" action during their turn, forfeiting half their bet and ending their turn.
     /// </summary>
-    private async Task DoSurrenderAsync(BlackjackState _state, Guid roomId, RoomPlayer player)
+    private async Task DoSurrenderAsync(BlackjackState state, Guid roomId, RoomPlayer player)
     {
-        // not allowed after splitting!
-        // check if player only has one hand
-        List<Hand> hands = await _handRepository.GetHandsByUserIdAsync(roomId, player.Id);
-        if (hands.Count > 1)
+        (BlackjackPlayerActionStage stage, Hand hand, string deckId) =
+            await InitializePlayerActionAsync(state, roomId, player);
+
+        List<CardDTO> handCards = await _deckApiService.ListHand(deckId, $"hand-{hand.Id}");
+
+        // can only surrender on first action
+        // check if player only has two cards in hand
+        if (stage.HandIndex != 0 || handCards.Count > 2)
         {
-            throw new BadRequestException("Surrender is not allowed after splitting.");
+            throw new BadRequestException("Surrender is only allowed on your first action.");
         }
 
-        // refund half of player's bet (add to balance and update gamestate)
-        long refund = hands[0].Bet / 2;
+        // refund half of player's bet
+        long refund = hand.Bet / 2;
         await _roomPlayerRepository.UpdatePlayerBalanceAsync(player.Id, refund);
 
         // broadcast player action (surrender)
         await _roomSSEService.BroadcastPlayerActionAsync(
             roomId,
-            player.Id,
-            hands[0].HandNumber,
+            player.UserId,
+            hand.HandNumber,
             "surrender",
             amount: refund
         );
@@ -698,8 +755,14 @@ public class BlackjackService(
     /// <summary>
     /// Move to the next player/hand turn, or if no players/hands are left, move to next stage (dealer turn).
     /// </summary>
-    private async Task NextHandOrFinishRoundAsync(BlackjackState state, Guid roomId)
+    private async Task NextHandOrFinishRoundAsync(
+        BlackjackState state,
+        Guid roomId,
+        BlackjackConfig? config = null
+    )
     {
+        config ??= await GetConfigAsync(roomId);
+
         if (state.CurrentStage is not BlackjackPlayerActionStage)
         {
             throw new InvalidOperationException(
@@ -721,7 +784,7 @@ public class BlackjackService(
 
             // if so, move to next hand
             state.CurrentStage = new BlackjackPlayerActionStage(
-                DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                DateTimeOffset.UtcNow + config.TurnTimeLimit,
                 stage.PlayerIndex,
                 stage.HandIndex + 1
             );
@@ -745,7 +808,7 @@ public class BlackjackService(
 
             // if so, move to next player
             state.CurrentStage = new BlackjackPlayerActionStage(
-                DateTimeOffset.UtcNow + _config.TurnTimeLimit,
+                DateTimeOffset.UtcNow + config.TurnTimeLimit,
                 nextPlayerIndex,
                 0
             );
@@ -758,7 +821,7 @@ public class BlackjackService(
         }
 
         // all players have finished, move to dealer turn and finish round
-        await FinishRoundAsync(state, roomId);
+        await FinishRoundAsync(state, roomId, config);
     }
 
     // After the players have finished playing, the dealer's hand is resolved by drawing cards until
@@ -768,8 +831,14 @@ public class BlackjackService(
     // If the dealer does not bust, each remaining bet wins if its hand is higher than the dealer's and
     // loses if it is lower. In the case of a tie ("push" or "standoff"), bets are returned without adjustment.
     // A blackjack beats any hand that is not a blackjack, even one with a value of 21.
-    private async Task FinishRoundAsync(BlackjackState state, Guid roomId)
+    private async Task FinishRoundAsync(
+        BlackjackState state,
+        Guid roomId,
+        BlackjackConfig? config = null
+    )
     {
+        config ??= await GetConfigAsync(roomId);
+
         // transition to finish round stage
         state.CurrentStage = new BlackjackFinishRoundStage();
         await state.SaveStateAndBroadcastAsync(roomId, _roomRepository, _roomSSEService);
@@ -785,14 +854,30 @@ public class BlackjackService(
 
         // hit until dealer has at least 17
         int dealerValue = dealerHand.CalculateHandValue();
+        _logger.LogInformation(
+            "Room {roomId} - Dealer hand: {dealerHand} ({dealerValue})",
+            roomId,
+            string.Join(", ", dealerHand.Select(c => c.Code)),
+            dealerValue
+        );
         while (dealerValue < 17)
         {
-            dealerHand = await _deckApiService.DrawCards(
+            await _deckApiService.DrawCards(
                 room.DeckId ?? throw new InternalServerException($"Room {roomId} has no deck ID."),
                 "dealer",
                 1
             );
+            dealerHand = await _deckApiService.ListHand(
+                room.DeckId ?? throw new InternalServerException($"Room {roomId} has no deck ID."),
+                "dealer"
+            );
             dealerValue = dealerHand.CalculateHandValue();
+            _logger.LogInformation(
+                "Room {roomId} - Dealer hit: {dealerHand} ({dealerValue})",
+                roomId,
+                string.Join(", ", dealerHand),
+                dealerValue
+            );
         }
 
         // broadcast final dealer hand (do not hide any cards)
@@ -854,9 +939,13 @@ public class BlackjackService(
 
         // initialize next betting stage
         state.CurrentStage = new BlackjackBettingStage(
-            DateTimeOffset.UtcNow + _config.BettingTimeLimit,
+            DateTimeOffset.UtcNow + config.BettingTimeLimit,
             []
         );
         await state.SaveStateAndBroadcastAsync(roomId, _roomRepository, _roomSSEService);
+
+        // increment round
+        room.Round += 1;
+        await _roomRepository.UpdateAsync(room);
     }
 }

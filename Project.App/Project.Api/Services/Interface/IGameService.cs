@@ -12,14 +12,16 @@ public interface IGameService<TState, TConfig>
     where TState : IGameState
     where TConfig : GameConfig
 {
-    TConfig Config { get; set; }
+    Task<TConfig> GetConfigAsync(Guid gameId);
+
+    Task SetConfigAsync(Guid gameId, TConfig config);
 
     Task<TState> GetGameStateAsync(Guid gameId);
 
     /// <summary>
     /// Sets up the game with initial state.
     /// </summary>
-    Task SetupGameAsync(Guid gameId);
+    Task StartGameAsync(Guid gameId, TConfig config);
 
     /// <summary>
     /// Performs a user action on the game, if valid, then updates the game state.

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -28,6 +29,59 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
         PropertyNameCaseInsensitive = true,
         Converters = { new FlexibleEnumConverterFactory() },
     };
+
+    /// <summary>
+    /// Creates a WebApplicationFactory configured for a specific test run, ensuring all
+    /// created clients and service scopes share the same in-memory database.
+    /// </summary>
+    /// <param name="dbName">The unique name for the in-memory database.</param>
+    /// <param name="testServicesConfiguration">An action to configure test-specific services, like mocks.</param>
+    /// <returns>A configured WebApplicationFactory.</returns>
+    protected WebApplicationFactory<Program> CreateConfiguredWebAppFactory(
+        string dbName,
+        Action<IServiceCollection>? testServicesConfiguration = null
+    )
+    {
+        return _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing");
+
+            builder.ConfigureAppConfiguration(
+                (context, configBuilder) =>
+                {
+                    configBuilder.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            { "Google:ClientId", "dummy-client-id" },
+                            { "Google:ClientSecret", "dummy-client-secret" },
+                        }
+                    );
+                }
+            );
+
+            builder.ConfigureServices(services =>
+            {
+                // silence logging during tests
+                services.RemoveAll<ILoggerFactory>();
+                services.AddSingleton<ILoggerFactory>(new NullLoggerFactory());
+
+                // Allow for additional, test-specific service configurations.
+                testServicesConfiguration?.Invoke(services);
+
+                // Use a single, consistent in-memory database for the entire test.
+                services.RemoveAll<DbContextOptions<AppDbContext>>();
+                services.AddDbContext<AppDbContext>(options =>
+                {
+                    options
+                        .UseInMemoryDatabase(dbName)
+                        .ConfigureWarnings(warnings =>
+                        {
+                            warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning);
+                        });
+                });
+            });
+        });
+    }
 
     /// <summary>
     /// Create a test HttpClient with a mocked service and in-memory database.
@@ -67,7 +121,12 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
                     services.RemoveAll<DbContextOptions<AppDbContext>>();
                     services.AddDbContext<AppDbContext>(options =>
                     {
-                        options.UseInMemoryDatabase($"InMemoryTestDb_{Guid.NewGuid()}");
+                        options
+                            .UseInMemoryDatabase($"InMemoryTestDb_{Guid.NewGuid()}")
+                            .ConfigureWarnings(warnings =>
+                            {
+                                warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning);
+                            });
                     });
                 });
             })

@@ -267,7 +267,6 @@ namespace Project.Test.Tests.Controllers
                 GameMode = "Blackjack",
                 MaxPlayers = 6,
                 MinPlayers = 2,
-                DeckId = "deck123",
             };
             var createdRoom = new RoomDTO
             {
@@ -277,7 +276,6 @@ namespace Project.Test.Tests.Controllers
                 GameMode = createDto.GameMode,
                 MaxPlayers = createDto.MaxPlayers,
                 MinPlayers = createDto.MinPlayers,
-                DeckId = createDto.DeckId,
             };
             _mockRoomService
                 .Setup(service => service.CreateRoomAsync(createDto))
@@ -476,6 +474,69 @@ namespace Project.Test.Tests.Controllers
 
             // Assert
             Assert.IsType<BadRequestObjectResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task CreateRoom_ReturnsCreatedAtAction_WithRoom_WhenSuccessful()
+        {
+            // Arrange
+            var createDto = new CreateRoomDTO
+            {
+                HostId = Guid.NewGuid(),
+                IsPublic = true,
+                GameMode = "Blackjack",
+                MaxPlayers = 4,
+                MinPlayers = 2,
+                Description = "A new game",
+            };
+
+            var createdRoom = new RoomDTO
+            {
+                Id = Guid.NewGuid(),
+                HostId = createDto.HostId,
+                IsPublic = createDto.IsPublic,
+                GameMode = createDto.GameMode,
+                MaxPlayers = createDto.MaxPlayers,
+                MinPlayers = createDto.MinPlayers,
+                Description = createDto.Description,
+                IsActive = true,
+            };
+
+            _mockRoomService
+                .Setup(service => service.CreateRoomAsync(createDto))
+                .ReturnsAsync(createdRoom);
+
+            // Act
+            var result = await _controller.CreateRoom(createDto);
+
+            // Assert
+            var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+            var returnRoom = Assert.IsType<RoomDTO>(createdResult.Value);
+            Assert.Equal(createdRoom.Id, returnRoom.Id);
+            Assert.Equal(nameof(_controller.GetRoomById), createdResult.ActionName);
+            Assert.Equal(createdRoom.Id, (createdResult.RouteValues ?? [])["id"]);
+        }
+
+        [Fact]
+        public async Task CreateRoom_ThrowsNullReferenceException_WhenServiceReturnsNull()
+        {
+            // Arrange
+            var createDto = new CreateRoomDTO
+            {
+                HostId = Guid.NewGuid(),
+                GameMode = "Blackjack",
+                MaxPlayers = 4,
+                MinPlayers = 2,
+            };
+
+            _mockRoomService
+                .Setup(service => service.CreateRoomAsync(createDto))
+                .ReturnsAsync((RoomDTO)null!); // Force service to return null
+
+            // Act & Assert
+            await Assert.ThrowsAsync<NullReferenceException>(() =>
+                _controller.CreateRoom(createDto)
+            );
         }
 
         #endregion
