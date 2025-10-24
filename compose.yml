@@ -4,7 +4,7 @@ services:
     build:
       context: ./Project.App/Project.Client
     ports:
-      - 8080:3000
+      - 3000:3000
     depends_on:
       - backend
 
@@ -28,7 +28,6 @@ services:
       # first run `dotnet dev-certs https -ep %USERPROFILE%\.aspnet\https\aspnetapp.pfx -p devcertpass`
       # then run  `dotnet dev-certs https --trust`
       # see: https://learn.microsoft.com/en-us/aspnet/core/security/docker-https?view=aspnetcore-9.0
-      # - ${APPDATA}/ASP.NET/https:/root/.aspnet/https:ro
       - ${USERPROFILE}/.aspnet/https:/https/
 
   db:
