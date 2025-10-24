@@ -20,6 +20,7 @@ adminsetting.json
 # ignore local appsettings with secrets
 appsettings.json
 appsettings.Development.json
+adminsettings.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

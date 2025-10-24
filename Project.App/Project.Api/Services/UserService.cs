@@ -117,7 +117,7 @@ namespace Project.Api.Services
                 }
 
                 user.Balance = newBalance;
-                await _repo.UpdateAsync(user);
+                await _repo.UpdateBalanceAsync(user);
                 return user;
             }
             catch (Exception e)
