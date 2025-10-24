@@ -323,15 +323,15 @@ public class BlackjackService(
                                     actionStage.HandIndex
                                 )
                             ).RoomPlayerId;
-                            RoomPlayer incativePlayer =
+                            RoomPlayer inactivePlayer =
                                 await _roomPlayerRepository.GetByIdAsync(inactiveRoomPlayerId)
                                 ?? throw new InternalServerException(
                                     $"Could not find current player {inactiveRoomPlayerId} in room {roomId}."
                                 );
 
                             // deadline passed, mark player as inactive
-                            incativePlayer.Status = Status.Inactive;
-                            await _roomPlayerRepository.UpdateAsync(incativePlayer);
+                            inactivePlayer.Status = Status.Inactive;
+                            await _roomPlayerRepository.UpdateAsync(inactivePlayer);
 
                             // broadcast player action
                             await _roomSSEService.BroadcastPlayerActionAsync(
@@ -340,7 +340,7 @@ public class BlackjackService(
                                 actionStage.HandIndex,
                                 "hurry_up",
                                 success: true,
-                                targetPlayerId: incativePlayer.Id
+                                targetPlayerId: inactivePlayer.UserId
                             );
                         }
 
@@ -476,10 +476,13 @@ public class BlackjackService(
                 deckId,
                 $"hand-{hand.Id}"
             );
+            RoomPlayer roomPlayer =
+                await _roomPlayerRepository.GetByIdAsync(hand.RoomPlayerId)
+                ?? throw new InternalServerException($"RoomPlayer {hand.RoomPlayerId} not found.");
             await playerHandCards.BroadcastAsync(
                 _roomSSEService,
                 roomId,
-                hand.RoomPlayerId,
+                roomPlayer.UserId,
                 hand.HandNumber
             ); // no hidden cards for players
         }
@@ -915,10 +918,13 @@ public class BlackjackService(
             }
 
             // broadcast final player hand
+            RoomPlayer roomPlayer =
+                await _roomPlayerRepository.GetByIdAsync(hand.RoomPlayerId)
+                ?? throw new InternalServerException($"RoomPlayer {hand.RoomPlayerId} not found.");
             await playerHand.BroadcastAsync(
                 _roomSSEService,
                 roomId,
-                hand.RoomPlayerId,
+                roomPlayer.UserId,
                 hand.HandNumber
             );
         }
