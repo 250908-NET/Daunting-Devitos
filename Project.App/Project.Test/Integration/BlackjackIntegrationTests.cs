@@ -226,6 +226,22 @@ public class BlackjackIntegrationTests(WebApplicationFactory<Program> factory)
             joinRoomResponse.EnsureSuccessStatusCode();
         }
 
+        // ASSERT: PlayerJoin events for player1 and player2 are received by all clients.
+        // The host (player0) will not receive their own PlayerJoin event because they created the room
+        // before connecting to SSE.
+        // Each of the 3 players' readers will receive 2 PlayerJoin events (for player1 and player2).
+        foreach (var (_, _, reader, _) in players)
+        {
+            for (int i = 1; i < players.Count; i++) // Loop for player1 and player2
+            {
+                var (eventType, eventData) = await SseTestHelper.ReadSseEventAsync(reader);
+                eventType.Should().Be(RoomEventType.PlayerJoin);
+                var playerJoinEvent = SseTestHelper.Deserialize<PlayerJoinEventData>(eventData);
+                playerJoinEvent!.PlayerId.Should().Be(players[i].id);
+                playerJoinEvent.PlayerName.Should().StartWith("Player"); // "Player1", "Player2"
+            }
+        }
+
         // --- STARTING THE GAME ---
         var startGameResponse = await client0.PostAsJsonAsync<object>(
             $"/api/room/{roomId}/start",
@@ -778,6 +794,22 @@ public class BlackjackIntegrationTests(WebApplicationFactory<Program> factory)
                 _jsonOptions
             );
             joinRoomResponse.EnsureSuccessStatusCode();
+        }
+
+        // ASSERT: PlayerJoin events for player1 and player2 are received by all clients.
+        // The host (player0) will not receive their own PlayerJoin event because they created the room
+        // before connecting to SSE.
+        // Each of the 3 players' readers will receive 2 PlayerJoin events (for player1 and player2).
+        foreach (var (_, _, reader, _) in players)
+        {
+            for (int i = 1; i < players.Count; i++) // Loop for player1 and player2
+            {
+                var (eventType, eventData) = await SseTestHelper.ReadSseEventAsync(reader);
+                eventType.Should().Be(RoomEventType.PlayerJoin);
+                var playerJoinEvent = SseTestHelper.Deserialize<PlayerJoinEventData>(eventData);
+                playerJoinEvent!.PlayerId.Should().Be(players[i].id);
+                playerJoinEvent.PlayerName.Should().StartWith("Player"); // "Player1", "Player2"
+            }
         }
 
         // --- STARTING THE GAME ---

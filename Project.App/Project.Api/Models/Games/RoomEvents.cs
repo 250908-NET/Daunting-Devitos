@@ -61,6 +61,15 @@ public record PlayerLeaveEventData : IRoomEventData
 }
 
 /// <summary>
+/// Specific DTO for a host change event (if the current host leaves)
+/// </summary>
+public record HostChangeEventData : IRoomEventData
+{
+    public Guid PlayerId { get; set; }
+    public string PlayerName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Specific DTO for revealing the dealer's cards
 /// </summary>
 public record DealerRevealEventData : IRoomEventData

@@ -76,7 +76,7 @@ public class RoomSSEServiceTests
         await Task.Delay(100);
 
         // Use the new RoomEventType enum and PlayerJoinEventData DTO
-        var eventType = RoomEventType.PlayerJoined;
+        var eventType = RoomEventType.PlayerJoin;
         var eventData = new PlayerJoinEventData
         {
             PlayerId = Guid.NewGuid(),

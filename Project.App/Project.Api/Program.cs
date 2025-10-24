@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
+using Project.Api.Models.Games;
 using Project.Api.Repositories;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services;
@@ -129,7 +130,7 @@ public static class ProgramExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         // scoped services
-        services.AddScoped<IBlackjackService, BlackjackService>();
+        services.AddScoped<IGameService<IGameState, GameConfig>, BlackjackService>();
         services.AddScoped<IHandService, HandService>();
         services.AddScoped<IRoomService, RoomService>();
         services.AddScoped<IUserService, UserService>();

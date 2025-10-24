@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Project.Api.Data;
 using Project.Api.DTOs;
 using Project.Api.Models;
@@ -8,25 +7,33 @@ using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
 using Project.Api.Utilities.Constants;
-using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services;
 
 public class RoomService(
     IRoomRepository roomRepository,
     IRoomPlayerRepository roomPlayerRepository,
-    IBlackjackService blackjackService,
-    IDeckApiService deckApiService,
     AppDbContext dbContext,
+    IEnumerable<IGameService<IGameState, GameConfig>> gameServices,
     ILogger<RoomService> logger
 ) : IRoomService
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository;
-    private readonly IBlackjackService _blackjackService = blackjackService;
-    private readonly IDeckApiService _deckApiService = deckApiService;
     private readonly AppDbContext _dbContext = dbContext;
+    private readonly Dictionary<string, IGameService<IGameState, GameConfig>> _gameServices =
+        gameServices.ToDictionary(s => s.GameMode.ToLowerInvariant(), s => s); // Initialize dictionary
     private readonly ILogger<RoomService> _logger = logger;
+
+    // Helper method to get the correct game service
+    private IGameService<IGameState, GameConfig> GetGameService(string gameMode)
+    {
+        if (!_gameServices.TryGetValue(gameMode.ToLowerInvariant(), out var service))
+        {
+            throw new BadRequestException($"Unsupported game mode: {gameMode}");
+        }
+        return service;
+    }
 
     public async Task<RoomDTO?> GetRoomByIdAsync(Guid id)
     {
@@ -64,15 +71,6 @@ public class RoomService(
 
         Validate(dto);
 
-        // // Auto-create deck if DeckId is not provided
-        // string deckId = dto.DeckId;
-        // if (string.IsNullOrWhiteSpace(deckId))
-        // {
-        //     _logger.LogInformation("Creating new deck for room");
-        //     deckId = await _deckApiService.CreateDeck(numOfDecks: 6, enableJokers: false);
-        //     _logger.LogInformation("Created deck with ID: {DeckId}", deckId);
-        // }
-
         Room room = new()
         {
             Id = Guid.CreateVersion7(),
@@ -89,19 +87,17 @@ public class RoomService(
             IsActive = true,
         };
 
-        RoomPlayer hostPlayer = new()
-        {
-            Id = Guid.CreateVersion7(),
-            RoomId = room.Id,
-            UserId = dto.HostId,
-            Balance = 1000,
-        };
+        // Get the game service for the room's game mode
+        var gameService = GetGameService(room.GameMode);
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
             Room createdRoom = await _roomRepository.CreateAsync(room); // create room
-            await _roomPlayerRepository.CreateAsync(hostPlayer); // add host as player
+
+            // Delegate host player creation to the game service
+            await gameService.PlayerJoinAsync(createdRoom.Id, dto.HostId);
+
             await transaction.CommitAsync();
 
             _logger.LogInformation("Successfully created room with ID: {RoomId}", createdRoom.Id);
@@ -209,52 +205,76 @@ public class RoomService(
             );
         }
 
-        // Initialize game state based on game mode
-        switch (room.GameMode.ToLower())
+        // get game service
+        var gameService = GetGameService(room.GameMode);
+
+        // determine config based on game mode using a switch statement
+        GameConfig config;
+        try
         {
-            case GameModes.Blackjack:
-                BlackjackConfig config;
-
-                // Apply custom config if provided
-                if (!string.IsNullOrWhiteSpace(gameConfigJson))
-                {
-                    config =
-                        JsonSerializer.Deserialize<BlackjackConfig>(gameConfigJson)
-                        ?? throw new BadRequestException("Invalid game configuration JSON.");
-                    GameConfigValidator.ValidateBlackjackConfig(config);
-                    _logger.LogInformation(
-                        "Using custom config for room {RoomId}: StartingBalance={Balance}, MinBet={MinBet}",
-                        roomId,
-                        config.StartingBalance,
-                        config.MinBet
+            switch (room.GameMode)
+            {
+                case GameModes.Blackjack:
+                    if (!string.IsNullOrWhiteSpace(gameConfigJson))
+                    {
+                        // Deserialize to specific BlackjackConfig type
+                        config =
+                            JsonSerializer.Deserialize<BlackjackConfig>(gameConfigJson)
+                            ?? throw new BadRequestException(
+                                "Invalid Blackjack game configuration JSON."
+                            );
+                        _logger.LogInformation(
+                            "Using custom Blackjack config for room {RoomId}",
+                            roomId
+                        );
+                    }
+                    else if (!string.IsNullOrWhiteSpace(room.GameConfig))
+                    {
+                        // Use existing config for Blackjack
+                        config =
+                            JsonSerializer.Deserialize<BlackjackConfig>(room.GameConfig)
+                            ?? throw new BadRequestException(
+                                "Invalid existing Blackjack game configuration."
+                            );
+                        _logger.LogInformation(
+                            "Using existing Blackjack config for room {RoomId}",
+                            roomId
+                        );
+                    }
+                    else
+                    {
+                        // Use default Blackjack config
+                        config = new BlackjackConfig();
+                        _logger.LogInformation(
+                            "Using default Blackjack config for room {RoomId}",
+                            roomId
+                        );
+                    }
+                    break;
+                // Add cases for other game modes here if they have specific GameConfig types
+                // case GameModes.Poker:
+                //     // ... handle PokerConfig ...
+                //     break;
+                default:
+                    // Fallback for unsupported game modes or if a specific config type isn't handled
+                    // This should ideally be caught by GetGameService, but as a safeguard:
+                    throw new BadRequestException(
+                        $"Unsupported game mode for configuration: {room.GameMode}"
                     );
-                }
-                else if (!string.IsNullOrWhiteSpace(room.GameConfig))
-                {
-                    config =
-                        JsonSerializer.Deserialize<BlackjackConfig>(room.GameConfig)
-                        ?? throw new BadRequestException("Invalid existing game configuration.");
-                    GameConfigValidator.ValidateBlackjackConfig(config);
-                    _logger.LogInformation("Using existing config for room {RoomId}", roomId);
-                }
-                else
-                {
-                    // Use default config
-                    config = new BlackjackConfig();
-                    _logger.LogInformation("Using default config for room {RoomId}", roomId);
-                }
-
-                await _blackjackService.StartGameAsync(roomId, config);
-                break;
-
-            default:
-                _logger.LogError(
-                    "Unsupported game mode '{GameMode}' for room {RoomId}",
-                    room.GameMode,
-                    roomId
-                );
-                throw new BadRequestException($"Unsupported game mode: {room.GameMode}");
+            }
         }
+        catch (JsonException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to deserialize game configuration for room {RoomId}",
+                roomId
+            );
+            throw new BadRequestException("Invalid game configuration format.");
+        }
+
+        // start the game!
+        await gameService.StartGameAsync(roomId, config); // delegate setup to the generic game service
 
         _logger.LogInformation("Successfully started game for room {RoomId}", roomId);
         return MapToResponseDto(
@@ -306,26 +326,14 @@ public class RoomService(
         }
 
         // Delegate to the appropriate game service based on game mode
-        switch (room.GameMode.ToLower())
-        {
-            case GameModes.Blackjack:
-                await _blackjackService.PerformActionAsync(roomId, playerId, action, data);
-                _logger.LogInformation(
-                    "Successfully performed action '{Action}' for player {PlayerId} in room {RoomId}",
-                    action,
-                    playerId,
-                    roomId
-                );
-                break;
-
-            default:
-                _logger.LogError(
-                    "Unsupported game mode '{GameMode}' for room {RoomId}",
-                    room.GameMode,
-                    roomId
-                );
-                throw new BadRequestException($"Unsupported game mode: {room.GameMode}");
-        }
+        var gameService = GetGameService(room.GameMode);
+        await gameService.PerformActionAsync(roomId, playerId, action, data);
+        _logger.LogInformation(
+            "Successfully performed action '{Action}' for player {PlayerId} in room {RoomId}",
+            action,
+            playerId,
+            roomId
+        );
     }
 
     // --- player management ---
@@ -350,59 +358,10 @@ public class RoomService(
             throw new BadRequestException("Room is not active.");
         }
 
-        // Check if player is already in the room
-        bool isAlreadyInRoom = await _roomPlayerRepository.IsPlayerInRoomAsync(roomId, userId);
-        if (isAlreadyInRoom)
-        {
-            _logger.LogWarning("User {UserId} is already in room {RoomId}", userId, roomId);
-            throw new ConflictException($"Player {userId} is already in room {roomId}.");
-        }
-
-        // Check if room is full
-        int currentPlayerCount = await _roomPlayerRepository.GetPlayerCountInRoomAsync(roomId);
-        if (currentPlayerCount >= room.MaxPlayers)
-        {
-            _logger.LogWarning(
-                "Room {RoomId} is full ({CurrentCount}/{MaxPlayers}). User {UserId} cannot join",
-                roomId,
-                currentPlayerCount,
-                room.MaxPlayers,
-                userId
-            );
-            throw new ConflictException("Room is full.");
-        }
-
-        // Create new RoomPlayer
-        var roomPlayer = new RoomPlayer
-        {
-            Id = Guid.NewGuid(),
-            RoomId = roomId,
-            UserId = userId,
-            Role = Role.Player,
-            Status = room.StartedAt == null ? Status.Active : Status.Away,
-            Balance = 0, // Will be set when game starts
-        };
-
-        try
-        {
-            await _roomPlayerRepository.CreateAsync(roomPlayer);
-            _logger.LogInformation(
-                "User {UserId} successfully joined room {RoomId}",
-                userId,
-                roomId
-            );
-        }
-        catch (DbUpdateException ex)
-            when (ex.InnerException?.Message.Contains("IX_RoomPlayer_RoomId_UserId_Unique") == true)
-        {
-            // Handle race condition where two requests tried to join simultaneously
-            _logger.LogWarning(
-                "Race condition detected: User {UserId} attempted duplicate join to room {RoomId}",
-                userId,
-                roomId
-            );
-            throw new ConflictException($"Player {userId} is already in room {roomId}.");
-        }
+        // delegate to the appropriate game service
+        // should include setting up the player, adding them to the room, etc.
+        var gameService = GetGameService(room.GameMode);
+        await gameService.PlayerJoinAsync(roomId, userId);
 
         // Return the room (no need to fetch again, we have it)
         return MapToResponseDto(room);
@@ -417,61 +376,10 @@ public class RoomService(
             await _roomRepository.GetByIdAsync(roomId)
             ?? throw new NotFoundException($"Room with ID {roomId} not found.");
 
-        // Get the player in the room
-        var roomPlayer =
-            await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, userId)
-            ?? throw new NotFoundException($"Player {userId} is not in room {roomId}.");
-
-        // Check if player is the host
-        if (room.HostId == userId)
-        {
-            _logger.LogInformation(
-                "Host {UserId} leaving room {RoomId}. Closing room and removing all players",
-                userId,
-                roomId
-            );
-
-            // Host is leaving - close the room within a transaction
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            try
-            {
-                // Mark room as inactive
-                room.IsActive = false;
-                room.EndedAt = DateTime.UtcNow;
-                await _roomRepository.UpdateAsync(room);
-
-                // Remove all players
-                var allPlayers = await _roomPlayerRepository.GetByRoomIdAsync(roomId);
-                foreach (var player in allPlayers)
-                {
-                    await _roomPlayerRepository.DeleteAsync(player.Id);
-                }
-
-                await transaction.CommitAsync();
-                _logger.LogInformation(
-                    "Successfully closed room {RoomId} and removed {PlayerCount} players",
-                    roomId,
-                    allPlayers.Count()
-                );
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(
-                    ex,
-                    "Failed to close room {RoomId} when host {UserId} left",
-                    roomId,
-                    userId
-                );
-                throw;
-            }
-        }
-        else
-        {
-            // Regular player leaving - just remove them
-            _logger.LogInformation("Player {UserId} leaving room {RoomId}", userId, roomId);
-            await _roomPlayerRepository.DeleteAsync(roomPlayer.Id);
-        }
+        // delegate to the appropriate game service
+        // should include removing the player from the room, selecting new host if necessary, etc.
+        var gameService = GetGameService(room.GameMode);
+        await gameService.PlayerLeaveAsync(roomId, userId);
 
         // Return the room (we already have it)
         return MapToResponseDto(room);

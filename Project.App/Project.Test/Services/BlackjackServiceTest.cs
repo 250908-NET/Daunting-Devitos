@@ -20,6 +20,7 @@ public class BlackjackServiceTest
     private readonly Mock<IHandRepository> _handRepositoryMock;
     private readonly Mock<IDeckApiService> _deckApiServiceMock;
     private readonly Mock<IRoomSSEService> _roomSSEServiceMock;
+    private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly BlackjackService _blackjackService;
 
     public BlackjackServiceTest()
@@ -29,6 +30,7 @@ public class BlackjackServiceTest
         _handRepositoryMock = new Mock<IHandRepository>();
         _deckApiServiceMock = new Mock<IDeckApiService>();
         _roomSSEServiceMock = new Mock<IRoomSSEService>();
+        _userRepositoryMock = new Mock<IUserRepository>();
 
         var defaultConfig = new BlackjackConfig();
         var defaultConfigString = JsonSerializer.Serialize(defaultConfig);
@@ -42,6 +44,7 @@ public class BlackjackServiceTest
             _handRepositoryMock.Object,
             _deckApiServiceMock.Object,
             _roomSSEServiceMock.Object,
+            _userRepositoryMock.Object,
             new Mock<ILogger<BlackjackService>>().Object
         );
     }

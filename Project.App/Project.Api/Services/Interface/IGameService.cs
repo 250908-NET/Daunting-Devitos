@@ -12,6 +12,11 @@ public interface IGameService<TState, TConfig>
     where TState : IGameState
     where TConfig : GameConfig
 {
+    /// <summary>
+    /// The unique identifier for the game mode handled by the service.
+    /// </summary>
+    string GameMode { get; }
+
     Task<TConfig> GetConfigAsync(Guid gameId);
 
     Task SetConfigAsync(Guid gameId, TConfig config);
@@ -22,6 +27,18 @@ public interface IGameService<TState, TConfig>
     /// Sets up the game with initial state.
     /// </summary>
     Task StartGameAsync(Guid gameId, TConfig config);
+
+    /// <summary>
+    /// Adds a player to the game.
+    /// </summary>
+    Task PlayerJoinAsync(Guid gameId, Guid playerId);
+
+    /// <summary>
+    /// Removes a player from the game.
+    /// If the host leaves, a new host is selected.
+    /// If the last player leaves, the game is marked as inactive.
+    /// </summary>
+    Task PlayerLeaveAsync(Guid gameId, Guid playerId);
 
     /// <summary>
     /// Performs a user action on the game, if valid, then updates the game state.

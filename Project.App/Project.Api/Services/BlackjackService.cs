@@ -5,6 +5,7 @@ using Project.Api.Models.Games;
 using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
+using Project.Api.Utilities.Constants;
 using Project.Api.Utilities.Enums;
 using Project.Api.Utilities.Extensions;
 
@@ -75,33 +76,45 @@ public class BlackjackService(
     IHandRepository handRepository,
     IDeckApiService deckApiService,
     IRoomSSEService roomSSEService,
+    IUserRepository userRepository,
     ILogger<BlackjackService> logger
-) : IBlackjackService
+) : IGameService<IGameState, GameConfig>
 {
     private readonly IRoomRepository _roomRepository = roomRepository;
     private readonly IRoomPlayerRepository _roomPlayerRepository = roomPlayerRepository; // TODO: use transactions for long-running tasks
     private readonly IHandRepository _handRepository = handRepository;
     private readonly IDeckApiService _deckApiService = deckApiService;
     private readonly IRoomSSEService _roomSSEService = roomSSEService;
+    private readonly IUserRepository _userRepository = userRepository;
     private readonly ILogger<BlackjackService> _logger = logger; // TODO: add more logging
 
-    public async Task<BlackjackConfig> GetConfigAsync(Guid gameId)
+    public string GameMode => GameModes.Blackjack;
+
+    public async Task<GameConfig> GetConfigAsync(Guid gameId)
     {
         string configString = await _roomRepository.GetGameConfigAsync(gameId);
-        return JsonSerializer.Deserialize<BlackjackConfig>(configString)!;
+
+        if (string.IsNullOrWhiteSpace(configString))
+            return new BlackjackConfig();
+
+        return JsonSerializer.Deserialize<BlackjackConfig>(configString) ?? new BlackjackConfig();
     }
 
-    public async Task SetConfigAsync(Guid gameId, BlackjackConfig config)
+    public async Task SetConfigAsync(Guid gameId, GameConfig inputConfig)
     {
+        if (inputConfig is not BlackjackConfig config)
+            throw new ArgumentException("Config must be of type BlackjackConfig.");
+
         string configString = JsonSerializer.Serialize(config);
         await _roomRepository.UpdateGameConfigAsync(gameId, configString);
     }
 
-    public async Task<BlackjackState> GetGameStateAsync(Guid roomId)
+    public async Task<IGameState> GetGameStateAsync(Guid roomId)
     {
         string stateString = await _roomRepository.GetGameStateAsync(roomId);
 
-        return JsonSerializer.Deserialize<BlackjackState>(stateString)!;
+        return JsonSerializer.Deserialize<BlackjackState>(stateString)
+            ?? throw new InternalServerException("Failed to deserialize game state.");
     }
 
     public static bool IsActionValid(string action, BlackjackStage stage) =>
@@ -117,8 +130,11 @@ public class BlackjackService(
             _ => false,
         };
 
-    public async Task StartGameAsync(Guid roomId, BlackjackConfig config)
+    public async Task StartGameAsync(Guid roomId, GameConfig inputConfig)
     {
+        if (inputConfig is not BlackjackConfig config)
+            throw new ArgumentException("Config must be of type BlackjackConfig.");
+
         // create initial game state
         BlackjackState initialState = new()
         {
@@ -159,6 +175,127 @@ public class BlackjackService(
         await initialState.SaveStateAndBroadcastAsync(roomId, roomSSEService: _roomSSEService);
     }
 
+    public async Task PlayerJoinAsync(Guid roomId, Guid playerId)
+    {
+        if (await GetConfigAsync(roomId) is not BlackjackConfig config)
+            throw new InternalServerException("Failed to get game config.");
+
+        // validate max player count
+        int playerCount = await _roomPlayerRepository.GetPlayerCountInRoomAsync(roomId);
+        if (playerCount >= config.MaxPlayers)
+        {
+            throw new BadRequestException(
+                $"Room {roomId} is full ({playerCount}/{config.MaxPlayers})."
+            );
+        }
+
+        // get user (for name)
+        User player =
+            await _userRepository.GetByIdAsync(playerId)
+            ?? throw new NotFoundException($"User {playerId} not found.");
+
+        // check if player is already in room
+        if (
+            await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(roomId, playerId)
+            is RoomPlayer existingPlayer
+        )
+        {
+            // if player is inactive or left, mark as away
+            if (existingPlayer.Status is Status.Inactive or Status.Left)
+            {
+                existingPlayer.Status = Status.Away;
+
+                // if out of chips and balance reset is enabled, set balance to initial amount
+                if (config.AllowBalanceReset && existingPlayer.Balance <= 0)
+                {
+                    existingPlayer.Balance = config.StartingBalance;
+                }
+
+                await _roomPlayerRepository.UpdateAsync(existingPlayer);
+            }
+        }
+        else
+        {
+            // player is new, create new room player
+            await _roomPlayerRepository.CreateAsync(
+                new RoomPlayer
+                {
+                    RoomId = roomId,
+                    UserId = playerId,
+                    Balance = config.StartingBalance,
+                    Status = Status.Away,
+                }
+            );
+        }
+
+        // broadcast player join
+        await _roomSSEService.BroadcastEventAsync(
+            roomId,
+            RoomEventType.PlayerJoin,
+            new PlayerJoinEventData() { PlayerId = playerId, PlayerName = player.Name }
+        );
+    }
+
+    public async Task PlayerLeaveAsync(Guid gameId, Guid playerId)
+    {
+        // mark user as left
+        RoomPlayer roomPlayer =
+            await _roomPlayerRepository.GetByRoomIdAndUserIdAsync(gameId, playerId)
+            ?? throw new BadRequestException($"Player {playerId} not found in room {gameId}.");
+
+        roomPlayer.Status = Status.Left;
+        await _roomPlayerRepository.UpdateAsync(roomPlayer);
+
+        // get user
+        User player =
+            await _userRepository.GetByIdAsync(playerId)
+            ?? throw new NotFoundException($"User {playerId} not found.");
+
+        // get room
+        Room room =
+            await _roomRepository.GetByIdAsync(gameId)
+            ?? throw new NotFoundException($"Room {gameId} not found.");
+
+        // broadcast player leave
+        await _roomSSEService.BroadcastEventAsync(
+            gameId,
+            RoomEventType.PlayerLeave,
+            new PlayerLeaveEventData() { PlayerId = playerId, PlayerName = player.Name }
+        );
+
+        // if player was host, find a new host
+        if (room.HostId == playerId)
+        {
+            // get list of players that are active or away
+            List<RoomPlayer> availablePlayers =
+            [
+                .. (await _roomPlayerRepository.GetByRoomIdAsync(gameId)).Where(p =>
+                    p.Status == Status.Active || p.Status == Status.Away
+                ),
+            ];
+
+            if (availablePlayers.Count == 0)
+            {
+                // no active players, mark room as inactive
+                room.IsActive = false;
+                await _roomRepository.UpdateAsync(room);
+            }
+            else
+            {
+                // otherwise, make the first active player the new host
+                room.HostId = availablePlayers[0].UserId;
+                await _roomRepository.UpdateAsync(room);
+
+                // broadcast new host
+                await _roomSSEService.BroadcastEventAsync(
+                    gameId,
+                    RoomEventType.HostChange,
+                    new HostChangeEventData() { PlayerId = playerId, PlayerName = player.Name }
+                );
+            }
+        }
+    }
+
     public async Task PerformActionAsync(
         Guid roomId,
         Guid playerId,
@@ -167,7 +304,9 @@ public class BlackjackService(
     )
     {
         // ensure action is valid for this stage
-        BlackjackState state = await GetGameStateAsync(roomId);
+        if (await GetGameStateAsync(roomId) is not BlackjackState state)
+            throw new InternalServerException("Failed to get game state.");
+
         if (!IsActionValid(action, state.CurrentStage))
         {
             throw new BadRequestException(
@@ -183,7 +322,8 @@ public class BlackjackService(
         BlackjackActionDTO actionDTO = data.ToBlackjackAction(action);
 
         // get config
-        BlackjackConfig config = await GetConfigAsync(roomId);
+        if (await GetConfigAsync(roomId) is not BlackjackConfig config)
+            throw new InternalServerException("Failed to get game config.");
 
         // do the action :)
         switch (actionDTO)
@@ -406,7 +546,9 @@ public class BlackjackService(
         BlackjackConfig? config = null
     )
     {
-        config ??= await GetConfigAsync(roomId);
+        config ??=
+            await GetConfigAsync(roomId) as BlackjackConfig
+            ?? throw new InternalServerException("Failed to get game config.");
 
         // get bets
         Dictionary<Guid, long> bets = ((BlackjackBettingStage)state.CurrentStage).Bets;
@@ -764,7 +906,9 @@ public class BlackjackService(
         BlackjackConfig? config = null
     )
     {
-        config ??= await GetConfigAsync(roomId);
+        config ??=
+            await GetConfigAsync(roomId) as BlackjackConfig
+            ?? throw new InternalServerException("Failed to get game config.");
 
         if (state.CurrentStage is not BlackjackPlayerActionStage)
         {
@@ -840,7 +984,9 @@ public class BlackjackService(
         BlackjackConfig? config = null
     )
     {
-        config ??= await GetConfigAsync(roomId);
+        config ??=
+            await GetConfigAsync(roomId) as BlackjackConfig
+            ?? throw new InternalServerException("Failed to get game config.");
 
         // transition to finish round stage
         state.CurrentStage = new BlackjackFinishRoundStage();

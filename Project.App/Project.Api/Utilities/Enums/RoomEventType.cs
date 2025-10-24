@@ -5,8 +5,9 @@ public enum RoomEventType
     Message,
     GameStateUpdate,
     PlayerAction,
-    PlayerJoined,
-    PlayerLeft,
+    PlayerJoin,
+    PlayerLeave,
+    HostChange,
     DealerReveal,
     PlayerReveal,
 }

@@ -9,4 +9,5 @@ public record BlackjackConfig : GameConfig
     public long MinBet { get; set; } = 0;
     public TimeSpan BettingTimeLimit { get; set; } = TimeSpan.FromSeconds(60);
     public override TimeSpan TurnTimeLimit { get; set; } = TimeSpan.FromSeconds(30);
+    public bool AllowBalanceReset { get; set; } = true;
 }
