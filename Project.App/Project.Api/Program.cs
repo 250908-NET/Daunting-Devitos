@@ -38,7 +38,7 @@ public class Program
 
         // use extension methods to configure services
         if (!builder.Environment.IsEnvironment("Testing"))
-            builder.Services.AddDatabase(builder.Configuration);
+            builder.Services.AddDatabase(builder.Configuration); // do not add database in testing
         builder.Services.AddApplicationServices();
         builder.Services.AddCorsPolicy();
         builder.Services.AddAuth(builder.Configuration, builder.Environment);
@@ -50,23 +50,8 @@ public class Program
 
         var app = builder.Build();
 
-        // optional/safe auto-migrate in other words our startup wont crash if the our migration model doenst match the DB
-        using (var scope = app.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            try
-            {
-                db.Database.Migrate();
-                Log.Information("[Startup] Database migration check complete.");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(
-                    ex,
-                    "[Startup] Database migration skipped or failed. Continuing startup."
-                );
-            }
-        }
+        if (!builder.Environment.IsEnvironment("Testing"))
+            app.ApplyMigrations(); // there's no database in testing
 
         app.UseMiddleware<GlobalExceptionHandler>();
 
@@ -320,5 +305,21 @@ public static class ProgramExtensions
         services.AddAuthorization();
 
         return services;
+    }
+
+    public static void ApplyMigrations(this WebApplication app)
+    {
+        // optional/safe auto-migrate in other words our startup wont crash if the our migration model doenst match the DB
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        try
+        {
+            db.Database.Migrate();
+            Log.Information("[Startup] Database migration check complete.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "[Startup] Database migration skipped or failed. Continuing startup.");
+        }
     }
 }
