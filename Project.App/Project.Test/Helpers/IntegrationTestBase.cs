@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -38,8 +39,8 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
     /// <param name="testServicesConfiguration">An action to configure test-specific services, like mocks.</param>
     /// <returns>A configured WebApplicationFactory.</returns>
     protected WebApplicationFactory<Program> CreateConfiguredWebAppFactory(
-        string dbName,
-        Action<IServiceCollection>? testServicesConfiguration = null
+        Action<IServiceCollection>? testServicesConfiguration = null,
+        string? dbName = null
     )
     {
         return _factory.WithWebHostBuilder(builder =>
@@ -65,6 +66,14 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
                 services.RemoveAll<ILoggerFactory>();
                 services.AddSingleton<ILoggerFactory>(new NullLoggerFactory());
 
+                // replace real authentication with a test handler
+                services
+                    .AddAuthentication(TestAuthHandler.AuthenticationScheme)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        TestAuthHandler.AuthenticationScheme,
+                        _ => { }
+                    );
+
                 // Allow for additional, test-specific service configurations.
                 testServicesConfiguration?.Invoke(services);
 
@@ -73,7 +82,7 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
                 services.AddDbContext<AppDbContext>(options =>
                 {
                     options
-                        .UseInMemoryDatabase(dbName)
+                        .UseInMemoryDatabase(dbName ?? $"InMemoryTestDb_{Guid.CreateVersion7()}")
                         .ConfigureWarnings(warnings =>
                         {
                             warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning);
@@ -84,72 +93,27 @@ public abstract class IntegrationTestBase(WebApplicationFactory<Program> factory
     }
 
     /// <summary>
-    /// Create a test HttpClient with a mocked service and in-memory database.
-    /// </summary>
-    protected HttpClient CreateTestClient(
-        Action<IServiceCollection>? testServicesConfiguration = null
-    )
-    {
-        return _factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Testing");
-
-                builder.ConfigureAppConfiguration(
-                    (context, configBuilder) =>
-                    {
-                        configBuilder.AddInMemoryCollection(
-                            new Dictionary<string, string?>
-                            {
-                                { "Google:ClientId", "dummy-client-id" },
-                                { "Google:ClientSecret", "dummy-client-secret" },
-                            }
-                        );
-                    }
-                );
-
-                builder.ConfigureServices(services =>
-                {
-                    // silence logging during tests
-                    services.RemoveAll<ILoggerFactory>();
-                    services.AddSingleton<ILoggerFactory>(new NullLoggerFactory());
-
-                    // mock specific services for the test as necessary
-                    testServicesConfiguration?.Invoke(services);
-
-                    // mock real DbContext using new in-memory database
-                    services.RemoveAll<DbContextOptions<AppDbContext>>();
-                    services.AddDbContext<AppDbContext>(options =>
-                    {
-                        options
-                            .UseInMemoryDatabase($"InMemoryTestDb_{Guid.NewGuid()}")
-                            .ConfigureWarnings(warnings =>
-                            {
-                                warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning);
-                            });
-                    });
-                });
-            })
-            .CreateClient();
-    }
-
-    /// <summary>
     /// Helper to create an HttpClient configured to use a specific IRoomSSEService instance.
     /// </summary>
     protected HttpClient CreateSSEClientWithMocks(
         IRoomSSEService sseService,
-        Action<IServiceCollection>? testServicesConfiguration = null
+        Action<IServiceCollection>? testServicesConfiguration = null,
+        string? dbName = null
     )
     {
-        return CreateTestClient(services =>
-        {
-            services.RemoveAll<IRoomSSEService>();
-            services.AddSingleton(sseService);
+        return CreateConfiguredWebAppFactory(
+                services =>
+                {
+                    services.RemoveAll<IRoomSSEService>();
+                    services.AddSingleton(sseService);
 
-            services.AddScoped(_ => Mock.Of<IRoomService>());
+                    services.AddScoped(_ => Mock.Of<IRoomService>());
 
-            // mock specific services for the test as necessary
-            testServicesConfiguration?.Invoke(services);
-        });
+                    // mock specific services for the test as necessary
+                    testServicesConfiguration?.Invoke(services);
+                },
+                dbName
+            )
+            .CreateClient();
     }
 }

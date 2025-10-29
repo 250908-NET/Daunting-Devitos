@@ -2,7 +2,7 @@ namespace Project.Api.Utilities.Enums;
 
 public enum RoomEventType
 {
-    Message,
+    Chat,
     GameStateUpdate,
     PlayerAction,
     PlayerJoin,

@@ -3,7 +3,7 @@ using Project.Api.Utilities.Enums;
 
 namespace Project.Api.Services.Interface;
 
-public interface IRoomSSEService
+public interface IRoomSSEService : IDisposable
 {
     /// <summary>
     /// Adds a new client connection for a specific room and keeps it open.
@@ -14,4 +14,9 @@ public interface IRoomSSEService
     /// Broadcasts an event to all clients connected to a specific room.
     /// </summary>
     Task BroadcastEventAsync(Guid roomId, RoomEventType eventName, IRoomEventData data);
+
+    /// <summary>
+    /// Closes all SSE connections for graceful shutdown.
+    /// </summary>
+    Task CloseAllConnectionsAsync();
 }

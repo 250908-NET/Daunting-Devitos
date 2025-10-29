@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Project.Api.DTOs;
 using Project.Api.Models.Games;
+using Project.Api.Repositories.Interface;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities;
 using Project.Api.Utilities.Enums;
@@ -11,6 +12,7 @@ namespace Project.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // Require authentication for all room endpoints
 public class RoomController(
     IRoomService roomService,
     IRoomSSEService roomSSEService,
@@ -207,6 +209,28 @@ public class RoomController(
         return Ok(room);
     }
 
+    // GET: api/room/{roomId}/players
+    [HttpGet("{roomId}/players")]
+    public async Task<ActionResult> GetRoomPlayers(
+        Guid roomId,
+        [FromServices] IRoomPlayerRepository roomPlayerRepository
+    )
+    {
+        var players = await roomPlayerRepository.GetByRoomIdAsync(roomId);
+        var playerDtos = players.Select(p => new
+        {
+            id = p.Id,
+            userId = p.UserId,
+            userName = p.User?.Name ?? "Unknown",
+            userEmail = p.User?.Email ?? "",
+            role = p.Role.ToString(),
+            status = p.Status.ToString(),
+            balance = p.Balance,
+            balanceDelta = p.BalanceDelta,
+        });
+        return Ok(playerDtos);
+    }
+
     #region SSE
 
     private readonly IRoomSSEService _roomSSEService = roomSSEService;
@@ -216,6 +240,7 @@ public class RoomController(
     /// </summary>
     /// <param name="roomId"></param>
     /// <returns></returns>
+    [AllowAnonymous]
     [HttpGet("{roomId}/events")]
     public async Task GetRoomEvents(Guid roomId)
     {
@@ -244,13 +269,13 @@ public class RoomController(
             throw new BadRequestException("Message content cannot be empty.");
         }
 
-        MessageEventData data = new()
+        ChatEventData data = new()
         {
             Sender = User.Identity?.Name ?? "Anonymous",
             Content = message.Content,
         };
 
-        await _roomSSEService.BroadcastEventAsync(roomId, RoomEventType.Message, data);
+        await _roomSSEService.BroadcastEventAsync(roomId, RoomEventType.Chat, data);
         return Ok();
     }
 

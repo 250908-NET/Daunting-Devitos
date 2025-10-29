@@ -10,7 +10,7 @@ public interface IRoomEventData { }
 /// <summary>
 /// Specific DTO for a chat message event
 /// </summary>
-public class MessageEventData : IRoomEventData
+public class ChatEventData : IRoomEventData
 {
     public string Sender { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;

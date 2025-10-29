@@ -1,14 +1,21 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging.Abstractions;
 using Project.Api.Models.Games; // Add this using directive for IRoomEventData and concrete types
 using Project.Api.Services;
-using Project.Api.Utilities.Enums; // Add this using directive for RoomEventType
+using Project.Api.Utilities.Enums;
+using Project.Api.Utilities.Extensions; // Add this using directive for RoomEventType
 
 namespace Project.Test.Services;
 
 public class RoomSSEServiceTests
 {
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // use js convention instead of C#
+    };
+
     /// <summary>
     /// Creates a mock HttpContext for testing SSE connections.
     /// </summary>
@@ -29,7 +36,7 @@ public class RoomSSEServiceTests
     public async Task AddConnectionAsync_ShouldSetHeadersAndSendConfirmation()
     {
         // Arrange
-        var sseService = new RoomSSEService();
+        var sseService = new RoomSSEService(NullLogger<RoomSSEService>.Instance);
         var (context, cts, stream) = CreateTestContext();
         var roomId = Guid.NewGuid();
 
@@ -59,7 +66,7 @@ public class RoomSSEServiceTests
     public async Task BroadcastEventAsync_ShouldSendEventToAllClientsInRoom()
     {
         // Arrange
-        var sseService = new RoomSSEService();
+        var sseService = new RoomSSEService(NullLogger<RoomSSEService>.Instance);
         var roomId1 = Guid.NewGuid();
         var roomId2 = Guid.NewGuid();
 
@@ -83,7 +90,7 @@ public class RoomSSEServiceTests
             PlayerName = "John Doe",
         };
         var expectedPayload =
-            $"event: {eventType.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData)}\n\n";
+            $"event: {eventType.ToString().ToSnakeCase()}\ndata: {JsonSerializer.Serialize(eventData, _jsonOptions)}\n\n";
 
         // Act
         await sseService.BroadcastEventAsync(roomId1, eventType, eventData);
@@ -119,7 +126,7 @@ public class RoomSSEServiceTests
     public async Task BroadcastEventAsync_ShouldCleanupDisconnectedClients()
     {
         // Arrange
-        var sseService = new RoomSSEService();
+        var sseService = new RoomSSEService(NullLogger<RoomSSEService>.Instance);
         var roomId = Guid.NewGuid();
 
         var (context1, cts1, stream1) = CreateTestContext();
@@ -133,10 +140,10 @@ public class RoomSSEServiceTests
         await stream2.DisposeAsync();
 
         // Use the new RoomEventType enum and MessageEventData DTO
-        var eventType1 = RoomEventType.Message;
-        var eventData1 = new MessageEventData { Sender = "Test", Content = "Hello" };
+        var eventType1 = RoomEventType.Chat;
+        var eventData1 = new ChatEventData { Sender = "Test", Content = "Hello" };
         var expectedPayload1 =
-            $"event: {eventType1.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData1)}\n\n";
+            $"event: {eventType1.ToString().ToSnakeCase()}\ndata: {JsonSerializer.Serialize(eventData1, _jsonOptions)}\n\n";
 
         // Act: first broadcast
         await sseService.BroadcastEventAsync(roomId, eventType1, eventData1);
@@ -156,10 +163,10 @@ public class RoomSSEServiceTests
         long afterFirstLength = stream1.Length;
 
         // Act: second broadcast
-        var eventType2 = RoomEventType.Message;
-        var eventData2 = new MessageEventData { Sender = "Test", Content = "Still here?" };
+        var eventType2 = RoomEventType.Chat;
+        var eventData2 = new ChatEventData { Sender = "Test", Content = "Still here?" };
         var expectedPayload2 =
-            $"event: {eventType2.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(eventData2)}\n\n";
+            $"event: {eventType2.ToString().ToSnakeCase()}\ndata: {JsonSerializer.Serialize(eventData2, _jsonOptions)}\n\n";
         await sseService.BroadcastEventAsync(roomId, eventType2, eventData2);
 
         // Assert: only the open connection receives the second event
@@ -181,12 +188,12 @@ public class RoomSSEServiceTests
     public async Task BroadcastEventAsync_ShouldDoNothingForRoomWithNoConnections()
     {
         // Arrange
-        var sseService = new RoomSSEService();
+        var sseService = new RoomSSEService(NullLogger<RoomSSEService>.Instance);
         var roomId = Guid.NewGuid(); // A room with no connections
 
         // Use the new RoomEventType enum and MessageEventData DTO
-        var eventType = RoomEventType.Message;
-        var eventData = new MessageEventData { Sender = "Test", Content = "empty" };
+        var eventType = RoomEventType.Chat;
+        var eventData = new ChatEventData { Sender = "Test", Content = "empty" };
 
         // Act
         var exception = await Record.ExceptionAsync(() =>

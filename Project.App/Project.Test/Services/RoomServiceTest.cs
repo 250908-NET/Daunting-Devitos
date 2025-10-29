@@ -23,7 +23,6 @@ public class RoomServiceTest : IDisposable // Implement IDisposable for DbContex
     private readonly Mock<IRoomRepository> _roomRepositoryMock;
     private readonly Mock<IRoomPlayerRepository> _roomPlayerRepositoryMock;
 
-    // Change this to mock the generic interface directly
     private readonly Mock<IGameService<IGameState, GameConfig>> _mockBlackjackGameService;
     private readonly List<IGameService<IGameState, GameConfig>> _mockGameServices; // Collection for RoomService
     private readonly Mock<ILogger<RoomService>> _loggerMock;

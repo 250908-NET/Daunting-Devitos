@@ -3,15 +3,23 @@ using System.Text.Json;
 using Project.Api.Models.Games;
 using Project.Api.Services.Interface;
 using Project.Api.Utilities.Enums;
+using Project.Api.Utilities.Extensions;
 
 namespace Project.Api.Services;
 
-public class RoomSSEService : IRoomSSEService
+public class RoomSSEService(ILogger<RoomSSEService> logger) : IRoomSSEService
 {
+    private readonly ILogger<RoomSSEService> _logger = logger;
+
     private readonly ConcurrentDictionary<
         Guid,
         ConcurrentDictionary<string, StreamWriter>
     > _connections = new();
+
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase, // use js convention instead of C#
+    };
 
     public async Task AddConnectionAsync(Guid roomId, HttpResponse response)
     {
@@ -66,11 +74,23 @@ public class RoomSSEService : IRoomSSEService
             return;
         }
 
-        // broadcast event using lowercase event type
-        string eventPayload =
-            $"event: {eventType.ToString().ToLowerInvariant()}\ndata: {JsonSerializer.Serialize(data, data.GetType())}\n\n";
-        List<string> closedConnections = [];
+        string serializedData = JsonSerializer.Serialize(data, data.GetType(), _jsonOptions);
+        string eventName = eventType.ToString().ToSnakeCase(); // use snake_case event type
 
+        _logger.LogInformation(
+            "[SSE] Broadcasting to room {roomId}: event={eventName}, data length={serializedData.Length}",
+            roomId,
+            eventName,
+            serializedData.Length
+        );
+        _logger.LogInformation(
+            "[SSE] Data preview: {serializedData}",
+            serializedData[..Math.Min(256, serializedData.Length)]
+        );
+
+        string eventPayload = $"event: {eventName}\ndata: {serializedData}\n\n";
+
+        List<string> closedConnections = [];
         foreach ((string connectionId, StreamWriter writer) in connections)
         {
             try
@@ -103,5 +123,35 @@ public class RoomSSEService : IRoomSSEService
                 await removedWriter.DisposeAsync();
             }
         }
+    }
+
+    public async Task CloseAllConnectionsAsync()
+    {
+        Console.WriteLine("[SSE] Closing all SSE connections for graceful shutdown...");
+
+        foreach (var roomConnections in _connections.Values)
+        {
+            foreach (var writer in roomConnections.Values)
+            {
+                try
+                {
+                    await writer.DisposeAsync();
+                }
+                catch
+                {
+                    // Ignore errors during shutdown
+                }
+            }
+            roomConnections.Clear();
+        }
+        _connections.Clear();
+
+        Console.WriteLine("[SSE] All SSE connections closed.");
+    }
+
+    public void Dispose()
+    {
+        CloseAllConnectionsAsync().GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 }

@@ -6,17 +6,18 @@ using Project.Api.Utilities;
 
 namespace Project.Api.Services;
 
-public class DeckApiService(HttpClient client) : IDeckApiService
+public class DeckApiService(HttpClient client, IConfiguration? configuration = null)
+    : IDeckApiService
 {
     private readonly HttpClient _httpClient = client;
+    private readonly string _baseApiUrl =
+        configuration?["DeckApiSettings:BaseUrl"] ?? "https://deckofcardsapi.com/api";
 
     private readonly JsonSerializerOptions _jsonSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };
-
-    private const string BASE_API_URL = "https://deckofcardsapi.com/api";
 
     /// <summary>
     /// Create a new shuffled deck and return the deck ID.
@@ -29,7 +30,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     public async Task<string> CreateDeck(int numOfDecks = 6, bool enableJokers = false)
     {
         string url =
-            $"{BASE_API_URL}/deck/new/shuffle/?deck_count={numOfDecks}&enable_Jokers={enableJokers}";
+            $"{_baseApiUrl}/deck/new/shuffle/?deck_count={numOfDecks}&enable_Jokers={enableJokers}";
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
@@ -49,7 +50,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     /// <returns>true if successful</returns>
     public async Task<bool> CreateEmptyHand(string deckId, string handName)
     {
-        string url = $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/add/?cards=";
+        string url = $"{_baseApiUrl}/deck/{deckId}/pile/{handName}/add/?cards=";
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
         {
@@ -92,7 +93,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
         }
 
         // draw cards from deck
-        string drawUrl = $"{BASE_API_URL}/deck/{deckId}/draw/?count={count}";
+        string drawUrl = $"{_baseApiUrl}/deck/{deckId}/draw/?count={count}";
         var drawResponse = await _httpClient.GetAsync(drawUrl);
         drawResponse.EnsureSuccessStatusCode();
 
@@ -123,7 +124,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     /// <returns>true if successful</returns>
     public async Task<bool> ReturnAllCardsToDeck(string deckId, bool shuffle = true)
     {
-        string url = $"{BASE_API_URL}/deck/{deckId}/{(shuffle ? "shuffle" : "return")}/";
+        string url = $"{_baseApiUrl}/deck/{deckId}/{(shuffle ? "shuffle" : "return")}/";
 
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
@@ -139,8 +140,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     /// <returns>true if successful</returns>
     public async Task<bool> AddToHand(string deckId, string handName, string cardCodes)
     {
-        string addToPileUrl =
-            $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/add/?cards={cardCodes}";
+        string addToPileUrl = $"{_baseApiUrl}/deck/{deckId}/pile/{handName}/add/?cards={cardCodes}";
         var addResponse = await _httpClient.GetAsync(addToPileUrl);
         if (!addResponse.IsSuccessStatusCode)
         {
@@ -156,7 +156,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     public async Task<bool> RemoveFromHand(string deckId, string handName, string cardCodes)
     {
         string removeFromPileUrl =
-            $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/draw/?cards={cardCodes}";
+            $"{_baseApiUrl}/deck/{deckId}/pile/{handName}/draw/?cards={cardCodes}";
         var removeResponse = await _httpClient.GetAsync(removeFromPileUrl);
         if (!removeResponse.IsSuccessStatusCode)
         {
@@ -171,7 +171,7 @@ public class DeckApiService(HttpClient client) : IDeckApiService
     /// <returns>A list of card DTOs</returns>
     public async Task<List<CardDTO>> ListHand(string deckId, string handName)
     {
-        string listPileUrl = $"{BASE_API_URL}/deck/{deckId}/pile/{handName}/list/";
+        string listPileUrl = $"{_baseApiUrl}/deck/{deckId}/pile/{handName}/list/";
         var listResponse = await _httpClient.GetAsync(listPileUrl);
         listResponse.EnsureSuccessStatusCode();
 

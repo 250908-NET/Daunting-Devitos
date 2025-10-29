@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Project.Api.DTOs;
 using Project.Api.Models;
@@ -8,6 +9,7 @@ namespace Project.Api.Controllers
 {
     [ApiController]
     [Route("api/rooms/{roomId}/hands")]
+    [Authorize] // Require authentication for all hand endpoints
     public class HandController : ControllerBase
     {
         private readonly ILogger<HandController> _logger;

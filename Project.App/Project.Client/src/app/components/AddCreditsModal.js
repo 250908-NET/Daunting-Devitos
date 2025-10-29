@@ -1,6 +1,14 @@
 'use client';
 
-export default function AddCreditsModal({ isOpen, onClose, balance, creditsToAdd, setCreditsToAdd, onSubmit }) {
+export default function AddCreditsModal({
+  isOpen,
+  onClose,
+  balance,
+  creditsToAdd,
+  setCreditsToAdd,
+  onSubmit,
+  isLoading,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -23,11 +31,11 @@ export default function AddCreditsModal({ isOpen, onClose, balance, creditsToAdd
               type="number"
               step="10"
               min="0"
-              max="200000"
               value={creditsToAdd}
               onChange={(e) => setCreditsToAdd(e.target.value)}
               placeholder="0"
-              className="w-full mt-1 px-4 py-3 bg-black/50 border-2 border-yellow-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+              disabled={isLoading}
+              className="w-full mt-1 px-4 py-3 bg-black/50 border-2 border-yellow-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed"
               required
             />
           </label>
@@ -35,14 +43,16 @@ export default function AddCreditsModal({ isOpen, onClose, balance, creditsToAdd
           <div className="flex gap-3 mt-6">
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-[0_0_15px_rgba(234,179,8,0.5)] hover:shadow-[0_0_25px_rgba(234,179,8,0.8)] border-2 border-yellow-700"
+              disabled={isLoading}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-500 hover:to-yellow-700 transition-all duration-200 shadow-[0_0_15px_rgba(234,179,8,0.5)] hover:shadow-[0_0_25px_rgba(234,179,8,0.8)] border-2 border-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Credits
+              {isLoading ? 'Adding...' : 'Add Credits'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 bg-red-900/50 text-white font-semibold rounded-lg hover:bg-red-900/70 transition-all duration-200 border-2 border-red-800"
+              disabled={isLoading}
+              className="px-6 py-3 bg-red-900/50 text-white font-semibold rounded-lg hover:bg-red-900/70 transition-all duration-200 border-2 border-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>

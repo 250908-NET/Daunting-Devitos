@@ -1,16 +1,17 @@
+# Stage 1: Build
 FROM node:24-alpine AS build
 
-# set working directory
-WORKDIR /src
+# Set working directory inside container
+WORKDIR /src/app
 
-# install dependencies
-COPY package.json package-lock.json ./
+# Copy package files and install dependencies
+COPY package*.json ./
 RUN npm ci
 
-# copy frontend code
-COPY . . 
+# Copy all source code (including src/app)
+COPY . .
 
-# build
+# Build the Next.js app
 RUN npm run build
 
 # --- run frontend from nginx server (static) ---
@@ -32,12 +33,12 @@ RUN npm run build
 FROM node:24-alpine AS run
 
 # set working directory
-WORKDIR /app
+WORKDIR /src/app
 
 # copy built files from build
-COPY --from=build /src/.next ./.next
+COPY --from=build /src/app/.next ./.next
 # copy static files
-COPY --from=build /src/public ./public 
+COPY --from=build /src/app/public ./public 
 
 # install dependencies (without dev deps)
 COPY package.json package-lock.json ./
